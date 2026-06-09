@@ -1,13 +1,13 @@
 from scapy.all import get_if_list, get_if_addr
 import time
 import asyncio
+import multiprocessing
 
-import MySnifferClass
-import SubnetScanner
-from PollerManager import PollerManager
-from SnmpPoller import AsyncSNMPPoller
-
-#from db_tools import connect_to_db
+from workers.MySnifferClass import MySniffer
+from workers.SubnetScanner import scanForDevices
+from workers.PollerManager import PollerManager
+from workers.SnmpPoller import AsyncSNMPPoller
+from workers.packetAnalyzer import MyAnalyzer
 
 monitored_devices = {}
 
@@ -37,33 +37,32 @@ def getInterfaceFromUser():
     return interface_SNMP, interface_PM
 
 async def start_app():
-    #db, cursor = connect_to_db()
-    db = None
-    cursor = None
-
     interface_SNMP, interface_PM = getInterfaceFromUser()
     
-    mySniffer = MySnifferClass.MySniffer(interface_PM, cursor, db)
+    shared_queue = multiprocessing.Queue()
+
+    mySniffer = MySniffer(interface_PM, shared_queue)
+    analyzer = MyAnalyzer(shared_queue)
     poller = AsyncSNMPPoller()
 
-    raw_hosts = SubnetScanner.scanForDevices(interface_SNMP) # ARP Scan
+    raw_hosts = scanForDevices(interface_SNMP) # ARP Scan
 
-    await PollerManager().load_lookup_table("devices.json")
+    await PollerManager().load_lookup_table("/home/AdminNetPulse/NetPulseApp/workers/devices.json")
 
     monitored_devices = await PollerManager().poll_devices(poller, raw_hosts)
 
-    print("Monitoring the following devices:")
-    for device in monitored_devices.values():
-        print(f" - {device}")
+    #print("Monitoring the following devices:")
+    #for device in monitored_devices.values():
+    #    print(f" - {device}")
 
     # pętla główna programu
     while True:
-        print("test3")
+        print("Updating monitored devices and polling SNMP metrics...")
         await PollerManager().poll_metrics(poller)
         await asyncio.sleep(30) # Interwał odpytywania
 
 
-if __name__ == "__main__":
+def main():
     try:
         asyncio.run(start_app())
     except KeyboardInterrupt:

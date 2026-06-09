@@ -1,60 +1,85 @@
-from scapy.all import sniff, IP, TCP, UDP, ICMP, Ether, AsyncSniffer, raw
-#from db_tools import store_packet_in_db
+import multiprocessing
+import time
+from scapy.all import AsyncSniffer, IP, TCP, UDP, ICMP
 
 class MySniffer:
-    def __init__(self, interface, cursor, db):
-        self.cursor = cursor
-        self.db = db
+    def __init__(self, interface, analyzer_queue):
+        self.analyzer_queue = analyzer_queue
         self.sniffer = AsyncSniffer(
             iface=interface, 
             prn=self.detailed_callback, 
-            store=0
+            store=0 
         )
         self.sniffer.start()
-        print(f"Sniffing on \"{interface}\"... Press Ctrl+C to stop.")
+        print(f"[SNIFFER] Nasłuchiwanie na \"{interface}\"... Trafia prosto do analizatora.")
     
     def __del__(self):
-        self.sniffer.stop()
+        try:
+            self.sniffer.stop()
+        except:
+            pass
 
     def detailed_callback(self, packet):
-        src_mac = None
-        dst_mac = None
-        src_ip = None
-        dst_ip = None
-        protocol = None
-        src_port = None
-        dst_port = None
-        packet_size = len(packet) 
-        payload = None
+        try:
+            # Pobieranie podstawowych cech L2 (Zawsze obecne)
+            src_mac = packet.src if hasattr(packet, "src") else None
+            dst_mac = packet.dst if hasattr(packet, "dst") else None
+            
+            # Inicjalizacja domyślna dla L3/L4 (szybsza niż wielokrotne przypisywanie None)
+            src_ip, dst_ip, protocol = None, None, "UNKNOWN"
+            src_port, dst_port, tcp_flags = None, None, ""
+            icmp_type, icmp_code = None, None
+            payload_len = 0
 
-        if hasattr(packet, "src") and hasattr(packet, "dst"):
-            src_mac = packet.src
-            dst_mac = packet.dst
+            # Analiza Warstwy L3 (IP)
+            if packet.haslayer(IP):
+                ip_layer = packet[IP]
+                src_ip = ip_layer.src
+                dst_ip = ip_layer.dst
+                protocol = "IP" 
+                if ip_layer.payload:
+                    payload_len = len(ip_layer.payload)
 
-        if packet.haslayer(IP):
-            src_ip = packet[IP].src
-            dst_ip = packet[IP].dst
-            protocol = "IP" 
+                # Analiza Warstwy L4 (TCP / UDP / ICMP)
+                if packet.haslayer(TCP):
+                    tcp_layer = packet[TCP]
+                    protocol = "TCP"
+                    src_port = tcp_layer.sport
+                    dst_port = tcp_layer.dport
+                    # Krytyczne dla IDS: Wyciągamy flagi jako string (np. "S", "RA", "FPU")
+                    tcp_flags = str(tcp_layer.flags)
+                    
+                elif packet.haslayer(UDP):
+                    udp_layer = packet[UDP]
+                    protocol = "UDP"
+                    src_port = udp_layer.sport
+                    dst_port = udp_layer.dport
+                    
+                elif packet.haslayer(ICMP):
+                    icmp_layer = packet[ICMP]
+                    protocol = "ICMP"
+                    # Krytyczne dla IDS: Typ i kod (wykrywanie ICMP Flooding/Smurf/Unreachable scans)
+                    icmp_type = icmp_layer.type
+                    icmp_code = icmp_layer.code
 
-        if packet.haslayer(TCP):
-            protocol = "TCP"
-            src_port = packet[TCP].sport
-            dst_port = packet[TCP].dport
-        elif packet.haslayer(UDP):
-            protocol = "UDP"
-            src_port = packet[UDP].sport
-            dst_port = packet[UDP].dport
-        elif packet.haslayer(ICMP):
-            protocol = "ICMP"
-            # ICMP nie ma portów, zostaną jako None (w bazie jako NULL)
+            data = {
+                "packet_time": float(packet.time),
+                "src_mac": src_mac,
+                "dst_mac": dst_mac,
+                "src_ip": src_ip,
+                "dst_ip": dst_ip,
+                "protocol": protocol,
+                "src_port": src_port,
+                "dst_port": dst_port,
+                "tcp_flags": tcp_flags,
+                "icmp_type": icmp_type,
+                "icmp_code": icmp_code,
+                "payload_len": payload_len,
+                "packet_size": len(packet)
+            }
 
-        if packet.haslayer(IP) and packet[IP].payload:
-            # raw() zamienia payload na obiekt typu bytes
-            payload = raw(packet[IP].payload)
+            self.analyzer_queue.put_nowait(data)
+            #print(f"[SNIFFER] Złapano pakiet: {data}")
 
-        self.save_to_db(src_mac, dst_mac, src_ip, dst_ip, protocol, src_port, dst_port, packet_size, payload, packet.time)
-
-    def save_to_db(self, src_mac, dst_mac, src_ip, dst_ip, protocol, src_port, dst_port, packet_size, payload, timestamp):
-        #values = (timestamp, src_mac, dst_mac, src_ip, dst_ip, protocol, src_port, dst_port, packet_size, payload)
-        #store_packet_in_db(self.db, self.cursor, values)
-        pass
+        except Exception as e:
+            pass

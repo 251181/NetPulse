@@ -105,7 +105,7 @@ class AsyncSNMPPoller:
                     'vendor': vendor,
                     'community': community,
                     'sysName': response['sysName'],
-                    'sysDescr': response['sysDescr'][:50],
+                    'sysDescr': response['sysDescr'],
                     'sysServices': response.get('sysServices', '0'),
                     'ifNumber': if_count  
                 }
@@ -208,7 +208,7 @@ class AsyncSNMPPoller:
         results = {
             'ip': ip,
             'performance': {},
-            'interfaces': {}
+            'interfaces': []
         }
 
         # KROK 1: Pobieranie metryk systemowych (CPU/RAM)
@@ -254,6 +254,9 @@ class AsyncSNMPPoller:
                 continue
                 
             p_idx = port_res["port_idx"]
-            results['interfaces'][p_idx] = port_res["data"]
+            results['interfaces'].append({
+                "if_number": p_idx,
+                **port_res["data"]
+            })
 
         return results

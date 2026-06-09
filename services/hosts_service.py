@@ -6,6 +6,6 @@ from serializers.hosts_serializer import serialize_hosts
 def get_hosts_service():
     db = current_app.mongo.db
 
-    hosts = db.hosts.find({})
+    hosts = list(db.devices.find({"general_info.device_type": "Unknown"}))
 
     return serialize_hosts(hosts), 200

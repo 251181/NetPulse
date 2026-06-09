@@ -15,6 +15,7 @@ def display_packets():
     for packet in packets:
         count += 1
         print(f"[{count}]")
+        print(datetime.fromtimestamp(packet["packet_time"]))
         pprint(packet)
         print("-" * 40)
 
@@ -22,54 +23,49 @@ def display_packets():
         print("No packets found.")
 
 
-def display_routers():
-    routers = db.routers.find()
+def display_devices():
+    devices = db.devices.find()
 
     count = 0
 
-    print("\n=== ROUTERS LIST ===\n")
+    print("\n=== DEVICES LIST ===\n")
 
-    for router in routers:
+    for device in devices:
         count += 1
         print(f"[{count}]")
-        pprint(router)
+        pprint(device)
         print("-" * 40)
 
     if count == 0:
-        print("No routers found.")
-
-
-def display_hosts():
-    hosts = db.hosts.find()
-
-    count = 0
-
-    print("\n=== HOSTS LIST ===\n")
-
-    for host in hosts:
-        count += 1
-        print(f"[{count}]")
-        pprint(host)
-        print("-" * 40)
-
-    if count == 0:
-        print("No hosts found.")
+        print("No devices found.")
 
 
 def store_packet(packet):
     db.packets.insert_one(packet)
 
 
-def store_router(router):
-    db.routers.update_one(
-        {"ip_address": router["ip_address"]},
-        {"$set": router},
+def store_device(ip, general_info=None, performance=None, interfaces=None):
+    update = {}
+
+    if general_info is not None:
+        general_info = general_info.copy()
+        general_info.pop('ip', None)
+        update["general_info"] = general_info
+
+    if performance is not None:
+        update["performance"] = performance
+
+    if interfaces is not None:
+        update["interfaces"] = interfaces
+
+    db.devices.update_one(
+        {"ip": ip},
+        {
+            "$set": update,
+            "$setOnInsert": {"ip": ip}
+        },
         upsert=True
     )
-
-
-def store_host(host):
-    db.hosts.insert_one(host)
 
 
 def clear_database():

@@ -6,6 +6,7 @@ from flask_pymongo import PyMongo
 
 from workers.backend import backend
 from routes.routers import routers_bp
+from routes.hosts import hosts_bp
 from routes.events import events_bp
 from routes.auth import auth_bp
 
@@ -19,6 +20,7 @@ app.mongo = mongo
 CORS(app)
 
 app.register_blueprint(routers_bp)
+app.register_blueprint(hosts_bp)
 app.register_blueprint(events_bp)
 app.register_blueprint(auth_bp)
 

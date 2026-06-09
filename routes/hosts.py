@@ -4,7 +4,7 @@ from services.hosts_service import get_hosts_service
 hosts_bp = Blueprint("hosts", __name__)
 
 
-@hosts_bp.route("/hosts/<router_ip>")
+@hosts_bp.route("/hosts")
 def get_hosts_by_router_ip():
     hosts, code = get_hosts_service()
 
