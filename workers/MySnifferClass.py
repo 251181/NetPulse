@@ -1,15 +1,26 @@
 import multiprocessing
 import time
-from scapy.all import AsyncSniffer, IP, TCP, UDP, ICMP
+import math
+from collections import Counter
+from scapy.all import AsyncSniffer, IP, TCP, UDP, ICMP, ARP
+
+def shannon_entropy(data: bytes) -> float:
+    """Liczy entropię Shannona (0-8) dla bajtów payloadu. Wyższa = bardziej losowe/szyfrowane dane."""
+    if not data:
+        return 0.0
+    counts = Counter(data)
+    length = len(data)
+    return -sum((count / length) * math.log2(count / length) for count in counts.values())
 
 class MySniffer:
-    def __init__(self, interface, analyzer_queue):
+    def __init__(self, interface, analyzer_queue, myIP=None):
         self.analyzer_queue = analyzer_queue
         self.sniffer = AsyncSniffer(
             iface=interface, 
             prn=self.detailed_callback, 
             store=0 
         )
+        self.myIP = myIP
         self.sniffer.start()
         print(f"[SNIFFER] Nasłuchiwanie na \"{interface}\"... Trafia prosto do analizatora.")
     
@@ -29,7 +40,9 @@ class MySniffer:
             src_ip, dst_ip, protocol = None, None, "UNKNOWN"
             src_port, dst_port, tcp_flags = None, None, ""
             icmp_type, icmp_code = None, None
+            arp_op, arp_psrc, arp_hwsrc = None, None, None
             payload_len = 0
+            payload_entropy = 0.0
 
             # Analiza Warstwy L3 (IP)
             if packet.haslayer(IP):
@@ -37,6 +50,9 @@ class MySniffer:
                 src_ip = ip_layer.src
                 dst_ip = ip_layer.dst
                 protocol = "IP" 
+                #if self.myIP and (src_ip == self.myIP or dst_ip == self.myIP):
+                #    # Ignorujemy ruch, który ma nasz własny adres IP jako źródłowy lub docelowy
+                #    return
                 if ip_layer.payload:
                     payload_len = len(ip_layer.payload)
 
@@ -61,6 +77,16 @@ class MySniffer:
                     # Krytyczne dla IDS: Typ i kod (wykrywanie ICMP Flooding/Smurf/Unreachable scans)
                     icmp_type = icmp_layer.type
                     icmp_code = icmp_layer.code
+                    icmp_payload_bytes = bytes(icmp_layer.payload)
+                    payload_len = len(icmp_payload_bytes)
+                    payload_entropy = shannon_entropy(icmp_payload_bytes)
+
+            elif packet.haslayer(ARP):
+                arp_layer = packet[ARP]
+                protocol = "ARP"
+                arp_op = arp_layer.op
+                arp_psrc = arp_layer.psrc
+                arp_hwsrc = arp_layer.hwsrc
 
             data = {
                 "packet_time": float(packet.time),
@@ -74,7 +100,11 @@ class MySniffer:
                 "tcp_flags": tcp_flags,
                 "icmp_type": icmp_type,
                 "icmp_code": icmp_code,
+                "arp_op": arp_op,
+                "arp_psrc": arp_psrc,
+                "arp_hwsrc": arp_hwsrc,
                 "payload_len": payload_len,
+                "payload_entropy": payload_entropy,
                 "packet_size": len(packet)
             }
 
@@ -82,4 +112,4 @@ class MySniffer:
             #print(f"[SNIFFER] Złapano pakiet: {data}")
 
         except Exception as e:
-            pass
+            print(f"[SNIFFER][ERROR] Callback padł na pakiecie: {e}")

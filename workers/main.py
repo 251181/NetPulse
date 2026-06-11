@@ -8,6 +8,7 @@ from workers.SubnetScanner import scanForDevices
 from workers.PollerManager import PollerManager
 from workers.SnmpPoller import AsyncSNMPPoller
 from workers.packetAnalyzer import MyAnalyzer
+from workers.snmp_analyzer import SNMPTelemetryAnalyzer
 
 monitored_devices = {}
 
@@ -41,9 +42,12 @@ async def start_app():
     
     shared_queue = multiprocessing.Queue()
 
-    mySniffer = MySniffer(interface_PM, shared_queue)
+    mySniffer = MySniffer(interface_PM, shared_queue, myIP=get_if_addr(interface_PM))
     analyzer = MyAnalyzer(shared_queue)
+    #asyncio.run(analyzer.start_loop())
+
     poller = AsyncSNMPPoller()
+    snmp_analyzer = SNMPTelemetryAnalyzer()
 
     raw_hosts = scanForDevices(interface_SNMP) # ARP Scan
 
@@ -51,15 +55,11 @@ async def start_app():
 
     monitored_devices = await PollerManager().poll_devices(poller, raw_hosts)
 
-    #print("Monitoring the following devices:")
-    #for device in monitored_devices.values():
-    #    print(f" - {device}")
-
     # pętla główna programu
     while True:
         print("Updating monitored devices and polling SNMP metrics...")
-        await PollerManager().poll_metrics(poller)
-        await asyncio.sleep(30) # Interwał odpytywania
+        await PollerManager().poll_metrics(poller, snmp_analyzer)
+        await asyncio.sleep(10) # Interwał odpytywania
 
 
 def main():

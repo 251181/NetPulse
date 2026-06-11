@@ -11,56 +11,67 @@ from pysnmp.hlapi.asyncio import (
 
 # --- KONFIGURACJA UNIWERSALNA ---
 OIDS = {
+    # Używane TYLKO podczas fazy Discovery (init), aby nie przeciążać pętli telemetrycznej
     "base": {
         "sysDescr": "1.3.6.1.2.1.1.1.0", 
         "sysName": "1.3.6.1.2.1.1.5.0",
-        "sysUpTime": "1.3.6.1.2.1.1.3.0",    
-        "sysLocation": "1.3.6.1.2.1.1.6.0",  
-        "sysContact": "1.3.6.1.2.1.1.4.0",   
         "sysServices": "1.3.6.1.2.1.1.7.0"
     },
+    
+    # Metryki wydajnościowe i detekcji anomalii (Odpytywane cyklicznie co interwał)
     "performance": {
         "Cisco IOS/Nexus": {
+            # CPU
             "cpu_5sec": "1.3.6.1.4.1.9.9.109.1.1.1.1.3.1",    
             "cpu_1min": "1.3.6.1.4.1.9.9.109.1.1.1.1.4.1",    
             "cpu_5min": "1.3.6.1.4.1.9.9.109.1.1.1.1.5.1",    
-            "ram_used": "1.3.6.1.4.1.9.9.109.1.1.1.1.12.1",   
-            "ram_free": "1.3.6.1.4.1.9.9.109.1.1.1.1.13.1",   
+            
+            # Pamięć RAM i Pule
             "mem_pool_processor_used": "1.3.6.1.4.1.9.9.48.1.1.1.5.1", 
             "mem_pool_io_used": "1.3.6.1.4.1.9.9.48.1.1.1.5.2",        
-            "temperature": "1.3.6.1.4.1.9.9.13.1.3.1.3",      
-            "ip_sla_latest_rtt": "1.3.6.1.4.1.9.9.42.1.2.10.1.1",    
-            "ip_sla_status": "1.3.6.1.4.1.9.9.42.1.2.10.1.2"
         },
+        
         "Linux/Unix Server": {
-            # Obciążenie i kolejka zadań
-            "cpu_load_1m": "1.3.6.1.4.1.2021.10.1.3.1",    # Load average (1 min)
-            "cpu_load_5m": "1.3.6.1.4.1.2021.10.1.3.2",    # Load average (5 min)
+            # Obciążenie systemu (Load Average)
+            "cpu_load_1m": "1.3.6.1.4.1.2021.10.1.3.1",    
+            "cpu_load_5m": "1.3.6.1.4.1.2021.10.1.3.2",    
             
-            # Procentowe zużycie CPU
+            # Detekcja DDoS na poziomie Kernela (System vs User)
             "cpu_user": "1.3.6.1.4.1.2021.11.9.0",         # CPU dla aplikacji (%)
-            "cpu_system": "1.3.6.1.4.1.2021.11.10.0",       # CPU dla Kernela (%) - ważne przy DDoS
+            "cpu_system": "1.3.6.1.4.1.2021.11.10.0",       # CPU dla Kernela (%) - KLUCZOWE PRZY DDoS
             "cpu_idle": "1.3.6.1.4.1.2021.11.11.0",         # Wolny procesor (%)
             
-            # Zarządzanie pamięcią (w Kilobajtach)
-            "ram_total": "1.3.6.1.4.1.2021.4.5.0",         # Fizyczny RAM całkowity
-            "ram_free": "1.3.6.1.4.1.2021.4.6.0",          # Fizyczny RAM całkowicie wolny
-            "ram_cached": "1.3.6.1.4.1.2021.4.13.0",       # RAM w pamięci podręcznej dysku
-            "ram_buffered": "1.3.6.1.4.1.2021.4.14.0",     # RAM w buforach systemowych
-            "swap_total": "1.3.6.1.4.1.2021.4.3.0",        # Pamięć SWAP całkowita
-            "swap_free": "1.3.6.1.4.1.2021.4.4.0",         # Pamięć SWAP wolna
+            # Pamięć RAM i SWAP (Wykrywanie Memory Leak / Buffer Overflow)
+            "ram_total": "1.3.6.1.4.1.2021.4.5.0",         
+            "ram_free": "1.3.6.1.4.1.2021.4.6.0",          
+            "ram_cached": "1.3.6.1.4.1.2021.4.13.0",       
+            "ram_buffered": "1.3.6.1.4.1.2021.4.14.0",     
+            "swap_total": "1.3.6.1.4.1.2021.4.3.0",        
+            "swap_free": "1.3.6.1.4.1.2021.4.4.0",         
             
-            # Przestrzeń dyskowa (Główna partycja / - indeks .1)
-            "disk_free_mb": "1.3.6.1.4.1.2021.9.1.7.1",     # Wolne miejsce na dysku (MB)
-            "disk_used_percent": "1.3.6.1.4.1.2021.9.1.9.1" # Procentowe zużycie dysku (%)
+            # Przestrzeń dyskowa i procesy (Wykrywanie Fork-Bomb / Ransomware)
+            "total_processes": "1.3.6.1.2.1.25.1.6.0",       # Liczba uruchomionych procesów (hrSystemProcesses)
+            "tcp_in_errors": "1.3.6.1.2.1.6.12.0"            # Licznik uszkodzonych pakietów TCP (tcpInErrs)
         }
     },
+    
+    # Statystyki interfejsów sieciowych (Mierzone per-port dynamicznie)
     "interfaces": {
         "ifNumber": "1.3.6.1.2.1.2.1.0",              
         "ifDescr": "1.3.6.1.2.1.2.2.1.2",             
         "ifOperStatus": "1.3.6.1.2.1.2.2.1.8",         
-        "ifInOctets": "1.3.6.1.2.1.2.2.1.10",         # Pancerne 32-bitowe Rx działające na NM-16ESW
-        "ifOutOctets": "1.3.6.1.2.1.2.2.1.16"         # Pancerne 32-bitowe Tx działające na NM-16ESW
+        
+        # Liczniki wolumetryczne (Bity/Bajty)
+        "ifInOctets": "1.3.6.1.2.1.2.2.1.10",         # Całkowity ruch wejściowy (Bajty)
+        "ifOutOctets": "1.3.6.1.2.1.2.2.1.16",        # Całkowity ruch wyjściowy (Bajty)
+        
+        # Liczniki pakietowe (Kluczowe przy Floodzie małych pakietów, np. 64B SYN Flood)
+        "ifInUcastPkts": "1.3.6.1.2.1.2.2.1.11",       # Pakiety unicast odebrane (Szybki skok = PPS flood)
+        "ifOutUcastPkts": "1.3.6.1.2.1.2.2.1.17",      # Pakiety unicast wysłane
+        
+        # Liczniki błędów (Przepełnienia buforów kart sieciowych / Uszkodzone ramki L2)
+        "ifInErrors": "1.3.6.1.2.1.2.2.1.14",          # Błędy wejściowe interfejsu (Dropowanie przez przepełnienie)
+        "ifOutErrors": "1.3.6.1.2.1.2.2.1.20"          # Błędy wyjściowe interfejsu
     }
 }
 
@@ -152,7 +163,13 @@ class AsyncSNMPPoller:
     # --- POMOCNICZA FUNKCJA DO BEZPIECZNEGO ODPYTYWANIA POJEDYNCZYCH PACZEK PORTÓW ---
     async def _query_single_port(self, transport, community, port_idx):
         """Pobiera dane dla konkretnego indeksu portu przez ukierunkowany GET."""
-        port_metrics_keys = ["ifDescr", "ifOperStatus", "ifInOctets", "ifOutOctets"]
+        # UZUPEŁNIONO O LICZNIKI PAKIETÓW I BŁĘDÓW DLA IDS
+        port_metrics_keys = [
+            "ifDescr", "ifOperStatus", 
+            "ifInOctets", "ifOutOctets", 
+            "ifInUcastPkts", "ifOutUcastPkts",
+            "ifInErrors", "ifOutErrors"
+        ]
         query_objects = [ObjectType(ObjectIdentity(f"{OIDS['interfaces'][k]}.{port_idx}")) for k in port_metrics_keys]
         
         try:
@@ -165,7 +182,6 @@ class AsyncSNMPPoller:
             )
             if not errorIndication and not errorStatus:
                 res_descr = varBinds[0][1].prettyPrint()
-                # Odrzucamy śmieci oraz nieistniejące instancje na switchu/routerze
                 if "No Such" in res_descr or not res_descr:
                     return None
                     
@@ -175,16 +191,17 @@ class AsyncSNMPPoller:
                         "ifDescr": res_descr,
                         "ifOperStatus": varBinds[1][1].prettyPrint(),
                         "ifInOctets": varBinds[2][1].prettyPrint(),
-                        "ifOutOctets": varBinds[3][1].prettyPrint()
+                        "ifOutOctets": varBinds[3][1].prettyPrint(),
+                        "ifInUcastPkts": varBinds[4][1].prettyPrint(),  
+                        "ifOutUcastPkts": varBinds[5][1].prettyPrint(),
+                        "ifInErrors": varBinds[6][1].prettyPrint(),
+                        "ifOutErrors": varBinds[7][1].prettyPrint()
                     }
                 }
         except Exception:
             pass
         return None
 
-    # =========================================================================
-    # ROZBUDOWANA I ZOPTYMALIZOWANA METODA GET (DZIAŁA NA ROUTERZE I SWITCHU)
-    # =========================================================================
     async def get_device_metrics(self, device_data):
         """Pobiera wydajność oraz interfejsy switcha/routera bez używania blokującego WALK."""
         if not device_data or device_data.get('status') != 'up':
@@ -225,10 +242,11 @@ class AsyncSNMPPoller:
                         val = varBinds[i][1].prettyPrint()
                         if "No Such" not in val:
                             results['performance'][metric_names[i]] = val
+                        else:
+                            results['performance'][metric_names[i]] = None
             except Exception as e:
                 print(f"[!] Błąd CPU/RAM dla {ip}: {e}")
 
-        # KROK 2: DYNAMICZNA GENERACJA PULI INDEKSÓW (Pancerny zakres dla Routerów i Switchy)
         # Generujemy bazowe porty (1-24) dla klasycznych routerów
         target_indices = list(range(1, min(if_count, 24) + 1))
         
@@ -242,12 +260,10 @@ class AsyncSNMPPoller:
         # Filtrujemy unikalne indeksy
         target_indices = sorted(list(set(target_indices)))
 
-        # KROK 3: Asynchroniczny Multiplexing żądań per-port (Bezpieczny GET bez zrywania sesji)
         # Odpytujemy o wszystkie potencjalne porty w tym samym czasie przez pętlę asyncio!
         port_tasks = [self._query_single_port(transport, community, idx) for idx in target_indices]
         port_results = await asyncio.gather(*port_tasks, return_exceptions=True)
 
-        # KROK 4: Agregacja odebranych portów
         for port_res in port_results:
             # Ignorujemy błędy i puste odpowiedzi z nieaktywnych indeksów
             if not port_res or isinstance(port_res, Exception):

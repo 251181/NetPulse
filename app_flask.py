@@ -1,6 +1,5 @@
 import threading
 import logging
-import click
 
 from flask import Flask
 from flask_cors import CORS
@@ -13,9 +12,7 @@ from routes.events import events_bp
 from routes.auth import auth_bp
 from routes.frontend import frontend_bp
 
-
 from workers.main import main
-from helpers.notification_manager import start_telegram_system
 
 app = Flask(__name__)
 
@@ -34,10 +31,5 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(frontend_bp)
 
 if __name__ == "__main__":
-    logging.getLogger('werkzeug').disabled = True
-    logging.getLogger('flask').setLevel(logging.ERROR)
-    click.echo = lambda *args, **kwargs: None
-    threading.Thread(target=main, daemon=True).start()
-    start_telegram_system()
-    
     app.run(debug=False, use_reloader=False, host="0.0.0.0", port=8000)
+    
