@@ -95,7 +95,6 @@ class AsyncSNMPPoller:
         self.auth_cache = {}  
 
     async def get_device_identity(self, ip):
-        """Discovery rozbudowane o zliczanie liczby interfejsów (ifNumber) i sysServices."""
         for community in self.communities:
             response = await self._try_query(ip, community)
             if response:
@@ -160,10 +159,7 @@ class AsyncSNMPPoller:
                 return name
         return "Generic/Unknown"
 
-    # --- POMOCNICZA FUNKCJA DO BEZPIECZNEGO ODPYTYWANIA POJEDYNCZYCH PACZEK PORTÓW ---
     async def _query_single_port(self, transport, community, port_idx):
-        """Pobiera dane dla konkretnego indeksu portu przez ukierunkowany GET."""
-        # UZUPEŁNIONO O LICZNIKI PAKIETÓW I BŁĘDÓW DLA IDS
         port_metrics_keys = [
             "ifDescr", "ifOperStatus", 
             "ifInOctets", "ifOutOctets", 
@@ -203,7 +199,6 @@ class AsyncSNMPPoller:
         return None
 
     async def get_device_metrics(self, device_data):
-        """Pobiera wydajność oraz interfejsy switcha/routera bez używania blokującego WALK."""
         if not device_data or device_data.get('status') != 'up':
             return None
 
@@ -228,7 +223,7 @@ class AsyncSNMPPoller:
             'interfaces': []
         }
 
-        # KROK 1: Pobieranie metryk systemowych (CPU/RAM)
+        # Pobieranie metryk systemowych (CPU/RAM)
         vendor_metrics = OIDS["performance"].get(vendor, {})
         if vendor_metrics:
             metric_names = list(vendor_metrics.keys())
@@ -250,16 +245,40 @@ class AsyncSNMPPoller:
         # Generujemy bazowe porty (1-24) dla klasycznych routerów
         target_indices = list(range(1, min(if_count, 24) + 1))
         
-        # Jeśli to Cisco (np. Twój switch NM-16ESW), dorzucamy sztywne ID slotów modułu przełączającego
         if "cisco" in vendor.lower():
             # NM-16ESW mapuje porty fizyczne w slocie 1 jako indeksy od 101 do 116
             target_indices.extend(list(range(101, 117)))
             # Czasami VLANy managementowe lądują na wysokich indeksach (np. 5001 dla Vlan1)
             target_indices.append(5001)
 
-        # Filtrujemy unikalne indeksy
         target_indices = sorted(list(set(target_indices)))
 
+        '''
+        # ta metoda teoretycznie może przyśpieszyć odpytywanie
+        semaphore = asyncio.Semaphore(3)
+
+        async def sem_port_query(idx):
+            async with semaphore:
+                return await self._query_single_port(transport, community, idx)
+
+        # Zamiast odpalać 41 zadań bez kontroli, odpalany je z limitem współbieżności semafora
+        port_tasks = [sem_port_query(idx) for idx in target_indices]
+        port_results = await asyncio.gather(*port_tasks, return_exceptions=True)
+
+        for port_res in port_results:
+            if not port_res or isinstance(port_res, Exception):
+                continue
+                
+            p_idx = port_res["port_idx"]
+            results['interfaces'].append({
+                "if_number": p_idx,
+                **port_res["data"]
+            })
+
+        return results
+
+        '''
+        # ta metoda może być wolniejsza
         # Odpytujemy o wszystkie potencjalne porty w tym samym czasie przez pętlę asyncio!
         port_tasks = [self._query_single_port(transport, community, idx) for idx in target_indices]
         port_results = await asyncio.gather(*port_tasks, return_exceptions=True)
@@ -276,3 +295,4 @@ class AsyncSNMPPoller:
             })
 
         return results
+        

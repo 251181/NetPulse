@@ -23,7 +23,7 @@ def check_interface_families(interface):
             for entry in addr_info[socket.AF_INET6]:
                 results["ipv6"].append({
                     "ip": entry['addr'],
-                    "mask": entry.get('netmask') # IPv6 uses netmask/prefix
+                    "mask": entry.get('netmask')
                 })
         print(f'Found IPs on this interface: {results}')
         return results

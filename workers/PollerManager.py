@@ -10,7 +10,6 @@ devices_lookup_table = {}
 
 def resolve_device_type(sys_descr):
     sys_descr = sys_descr.lower()
-
     for key, value in devices_lookup_table.items():
         if key.lower() in sys_descr:
             return value
@@ -25,7 +24,7 @@ class PollerManager:
             async with aiofiles.open(path, mode='r', encoding='utf-8') as f:
                 content = await f.read()
                 data = json.loads(content)
-                devices_lookup_table.clear()  # Czyścimy istniejący słownik przed aktualizacją
+                devices_lookup_table.clear()
                 devices_lookup_table.update(data)
                 print(f"[*] Pomyślnie wczytano {len(data)} reguł mapowania urządzeń.")
 
@@ -66,7 +65,6 @@ class PollerManager:
 
         for ip, result in zip(monitored_devices.keys(), metrics_results):
             if result:
-                # 1. ZAPIS DO BAZY (Twoje obecne rozwiązanie dla Front-endu)
                 store_device(ip=ip, performance=result.get("performance"), interfaces=result.get("interfaces"))
 
                 metrics = build_metrics(
@@ -77,16 +75,16 @@ class PollerManager:
 
                 store_metrics(metrics)
                 '''
-                print(f"\n📊 === WSZYSTKIE DANE DLA URZĄDZENIA: {ip} ===")
+                print(f"\n=== WSZYSTKIE DANE DLA URZĄDZENIA: {ip} ===")
                 # Pobieramy statyczne dane "base", które wykryliśmy podczas Discovery
                 device_info = monitored_devices.get(ip, {})
-                print(f"🔹 [BASE INFO] Nazwa: {device_info.get('sysName')}, Vendor: {device_info.get('vendor')}, Typ: {device_info.get('device_type')}")
+                print(f"[BASE INFO] Nazwa: {device_info.get('sysName')}, Vendor: {device_info.get('vendor')}, Typ: {device_info.get('device_type')}")
 
                 # Wypisujemy dynamiczne metryki z obiektu result (CPU/RAM/System)
-                print(f"📈 [PERFORMANCE]: {result.get('performance')}")
+                print(f"[PERFORMANCE]: {result.get('performance')}")
 
                 # Wypisujemy interfejsy wraz z pełnymi statystykami IDS (Pakiety, Błędy, Wolumetryka)
-                print(f"🔌 [INTERFACES] (Liczba zebranych: {len(result.get('interfaces', []))}):")
+                print(f"[INTERFACES] (Liczba zebranych: {len(result.get('interfaces', []))}):")
                 for iface in result.get("interfaces", []):
                     # Wyciągamy opisy i statusy
                     if_num = iface.get('if_number')
@@ -108,14 +106,13 @@ class PollerManager:
                         f"Tx: {out_bytes}B ({out_pkts} pkts), Errors: {out_errs}"
                     )
                     '''
-                # 2. PRZEKAZANIE DO ANALIZATORA (Nowa integracja czasu rzeczywistego)
                 if snmp_analyzer:
-                    # Tworzymy zadanie analizy, aby nie blokować pętli zapisu ani logowania
                     task = asyncio.create_task(snmp_analyzer.analyze_metrics(result))
                     analysis_tasks.append(task)
             else:
                 print(f"  - Nie można pobrać metryk dla {ip}") # TODO dodanie do bazy jako hosty z samym IP
 
-        # Jeśli są zadania analizy, pozwól pętli asyncio je wykonać
         if analysis_tasks:
             await asyncio.gather(*analysis_tasks, return_exceptions=True)
+        
+        print("[*] Koniec pobierania metryk wydajnościowych")

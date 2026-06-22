@@ -26,7 +26,6 @@ class MyAnalyzer:
         print("[PACKET ANALYZER] Uruchomiono asynchroniczny analizator anomalii.")
         logging.warning(f"Analyzer started, waiting for packets...")
         
-        # Uruchomienie pętli detektorów w tle
         loop_task_structural = asyncio.create_task(self.structural_anomaly_detector.analysis_loop())
         loop_task_moving_avg = asyncio.create_task(self.moving_average_detector.check_anomaly())
 
@@ -43,7 +42,6 @@ class MyAnalyzer:
             logging.info("Główna pętla analizatora została zatrzymana.")
             
         finally:
-            # PRAWIDŁOWE MIEJSCE: Anulowanie zadań nastąpi DOPIERO po wyjściu z pętli while
             print("[PACKET ANALYZER] Zamykanie zadań detekcji anomalii...")
             loop_task_structural.cancel()
             loop_task_moving_avg.cancel()
@@ -57,7 +55,7 @@ class MyAnalyzer:
         flags = pkt.get("tcp_flags", "")
         dst_port = pkt.get("dst_port")
 
-        # --- REGUŁA 1: Wykrywanie skanowania flag TCP (Xmas / Null) ---
+        # Wykrywanie skanowania flag TCP (Xmas / Null) ---
         if proto == "TCP":
             # Xmas Scan (FIN, PSH, URG)
             if "F" in flags and "P" in flags and "U" in flags:
@@ -134,7 +132,7 @@ class MyAnalyzer:
                 except Exception:
                     logging.exception("Failed to save log")
 
-        # --- REGUŁA 2: Podejrzany rozmiar ICMP (Eksfiltracja danych / Tunelowanie) ---
+        # Podejrzany rozmiar ICMP (Eksfiltracja danych / Tunelowanie) ---
         elif proto == "ICMP":
             payload_len = pkt.get("payload_len", 0)
             payload_entropy = pkt.get("payload_entropy", 0.0) # Skala 0-8 (wyższa = szyfrowane/skompresowane data)
@@ -165,7 +163,7 @@ class MyAnalyzer:
                     logging.exception("Failed to save log")
 
         elif proto == "ARP":
-            # --- REGUŁA 3: ARP Spoofing Detection (Multiple MAC)
+            # ARP Spoofing Detection (Multiple MAC)
             op = pkt.get("arp_op")
             psrc = pkt.get("arp_psrc")
             hwsrc = pkt.get("arp_hwsrc")
@@ -198,9 +196,7 @@ class MyAnalyzer:
 
                 self.arp_cache[psrc].append(hwsrc) # zawsze zapisuj, nie tylko gdy wykryto spoofing
 
-        # --- REGUŁA 4: Krytyczne Porty (Próba dostępu do wrażliwych usług) ---
-        # Możesz sprawdzać, czy ktoś nie uderza w porty, które w Twojej sieci korporacyjnej
-        # powinny być bezwzględnie zamknięte.
+        # Krytyczne Porty (Próba dostępu do wrażliwych usług) ---
         if dst_port in [21, 22, 23, 445]:  # FTP, SSH, Telnet, SMB
             logging.warning(f"Suspicious access to critical port {dst_port} from {pkt['src_ip']}")
             
@@ -228,41 +224,33 @@ class MyAnalyzer:
 from collections import deque
 
 class MovingAverageDetector:
-    def __init__(self, long_window_sec=300, short_window_sec=5, multiplier=10.0):
+    def __init__(self, long_window_sec=300, short_window_sec=5, multiplier=20.0):
         self.long_window_sec = long_window_sec
         self.short_window_sec = short_window_sec
         self.multiplier = multiplier
         self.anti_alert_spam = 0
         
-        # Przechowujemy wyłącznie timestampy nadejścia pakietów
         self.long_history = deque()
         self.short_history = deque()
 
     def register_packet(self):
-        """Wywoływane przy każdym pakiecie z Packet Analyzera"""
         now = time.time()
         self.long_history.append(now)
         self.short_history.append(now)
 
     async def check_anomaly(self):
-        """Pętla asynchroniczna uruchamiana np. co 1 sekundę"""
         while True:
-            #print(f"[MovingAverageDetector] Checking for volumetric anomalies... Long window: {len(self.long_history)} packets, Short window: {len(self.short_history)} packets")
             await asyncio.sleep(1)
             now = time.time()
 
-            # Czyszczenie starych danych
             while self.long_history and self.long_history[0] < now - self.long_window_sec:
                 self.long_history.popleft()
             while self.short_history and self.short_history[0] < now - self.short_window_sec:
                 self.short_history.popleft()
 
-            # Obliczanie PPS (Packets Per Second) dla obu okien
             avg_long_pps = len(self.long_history) / self.long_window_sec
             avg_short_pps = len(self.short_history) / self.short_window_sec
-
-            # Unikamy dzielenia przez zero i fałszywych alarmów przy minimalnym ruchu
-           
+        
             if (not self.anti_alert_spam) and (avg_long_pps > 5 and avg_short_pps > (avg_long_pps * self.multiplier)):
                 print(f"[ALERT] Wolumetryczny DoS! Obecny PPS: {avg_short_pps:.1f} "
                       f"jest > {self.multiplier}x większy niż norma ({avg_long_pps:.1f} PPS)")
@@ -278,23 +266,17 @@ class StructuralAnomalyDetector:
         self.SYNACK2_anti_alert_spam = 0
         self.unique_ip_anti_alert_spam = 0
         
-        # Liczniki resetowane co interwał
         self.syn_count = 0
         self.ack_count = 0
         self.total_packets = 0
         self.unique_src_ips = set()
 
     def process_tcp_metrics(self, src_ip, dst_ip, tcp_flags_str, protocol):
-        """
-        Analiza struktury ruchu zabezpieczona filtrem protokołu L4.
-        """
         if not src_ip or protocol != "TCP":
-            # Jeśli to UDP (SNMP), ICMP lub ARP - ignorujemy zliczanie struktury TCP!
             return
             
         self.total_packets += 1
         self.unique_src_ips.add(src_ip)
-        #print(f"[StructuralAnomalyDetector] Processing TCP packet from {src_ip} to {dst_ip} with flags: {tcp_flags_str}")
         if tcp_flags_str:
             if "S" in tcp_flags_str:  
                 self.syn_count += 1
@@ -308,48 +290,42 @@ class StructuralAnomalyDetector:
             if self.total_packets == 0:
                 continue
 
-            # Migawka zmiennych (Snapshot)
             current_syn = self.syn_count
             current_ack = self.ack_count
             current_total = self.total_packets
             current_unique = len(self.unique_src_ips)
 
-            # Reset stanu
             self.syn_count = 0
             self.ack_count = 0
             self.total_packets = 0
             self.unique_src_ips.clear()
 
-            # Kalkulacja ratio
             if current_ack == 0:
                 ratio = float('inf')
             else:
                 ratio = current_syn / current_ack
 
-            # --- NOWA LOGIKA BEZPIECZEŃSTWA (PRODUKCYJNA) ---
-            # Ignorujemy małe szumy sieciowe (retransmisje pojedynczych maszyn)
             if current_syn < 150: 
                 # Ruch jest zbyt mały, by zagrażał sieci - traktujemy jako normalne falowanie
                 continue
 
-            # Jeśli ratio przekracza normę ORAZ wolumen pakietów SYN jest krytyczny
-            #print(f"[StructuralAnomalyDetector] SYN/ACK Ratio: {ratio:.2f}, SYN count: {current_syn}, Unique IPs: {current_unique}, Total TCP packets: {current_total}")
-            # 1. Jeśli ratio jest wysokie (klasyczny, czysty flood lub "cichy" atak)
+            # ratio jest wysokie (klasyczny, czysty flood lub "cichy" atak)
             if ratio > self.max_syn_ack_ratio and current_syn >= 150:
                 if self.SYNACK1_anti_alert_spam:
-                    continue  # Unikamy spamowania alertami, jeśli już wykryto anomalię w ostatnim interwale
+                    continue
                 print(f"[ALERT] Wykryto DoS typu SYN Flood (Asymetria flag serwer nie wyrabia)! SYN/ACK Ratio = {ratio:.2f}")
-                self.SYNACK1_anti_alert_spam = 1  # Ustawiamy flagę, by nie spamować alertami co interwał
+                # TODO ZAPIS DO BAZY I ALERT
+                self.SYNACK1_anti_alert_spam = 1
 
-            # 2. Jeśli ratio jest niskie (bo serwer walczy i generuje SYN-Cookies/RST), 
-            # ale pakiety n jak z armaty (> 500 pakietów SYN w 5 sekund)
+            # ratio jest niskie (bo serwer daje rade odpowiadac), 
             elif current_syn > 500:
                 if self.SYNACK2_anti_alert_spam:
-                    continue  # Unikamy spamowania alertami, jeśli już wykryto anomalię w ostatnim interwale
+                    continue
                 print(f"[ALERT] Wykryto DoS typu SYN Flood (Agresywny wolumen)! "
                     f"Ratio w normie ({ratio:.2f}), bo serwer próbuje się bronić, "
                     f"ale wykryto aż {current_syn} pakietów SYN w ciągu 5 sekund!")
-                self.SYNACK2_anti_alert_spam = 1  # Ustawiamy flagę, by nie spamować alertami co interwał
+                    # TODO ZAPIS DO BAZY I ALERT
+                self.SYNACK2_anti_alert_spam = 1
 
             if not (ratio > self.max_syn_ack_ratio and current_syn >= 150):
                 self.SYNACK1_anti_alert_spam = 0 
@@ -360,9 +336,10 @@ class StructuralAnomalyDetector:
             ip_dispersion_ratio = current_unique / current_total
             if ip_dispersion_ratio > self.max_unique_ip_ratio and current_total > 500:
                 if self.unique_ip_anti_alert_spam:
-                    continue  # Unikamy spamowania alertami, jeśli już wykryto anomalię w ostatnim interwale
+                    continue
                 print(f"[ALERT] Wykryto ROZPROSZONY DDoS! Unikalne adresy IP stanowią "
                       f"{ip_dispersion_ratio*100:.1f}% całego ruchu (Total: {current_total} pkt).")
-                self.unique_ip_anti_alert_spam = 1  # Ustawiamy flagę, by nie spamować alertami co interwał
+                      # TODO ZAPIS DO BAZY I ALERT
+                self.unique_ip_anti_alert_spam = 1
             else:
-                self.unique_ip_anti_alert_spam = 0  # Resetujemy, gdy sytuacja wraca do normy
+                self.unique_ip_anti_alert_spam = 0

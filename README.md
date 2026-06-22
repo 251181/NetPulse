@@ -1,3 +1,3 @@
 # NetPulse
 
-![Alt text](NetPulse.png?raw=true "Logo")
+![Logo NetPulse](NetPulse.png?raw=true "Logo")

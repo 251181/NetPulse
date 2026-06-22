@@ -5,7 +5,6 @@ FILE_NAME = "devices.json"
 
 
 def load_devices():
-    """Wczytuje słownik z pliku JSON. Zwraca pusty słownik, jeśli plik nie istnieje."""
     if os.path.exists(FILE_NAME) and os.path.getsize(FILE_NAME) > 0:
         with open(FILE_NAME, "r", encoding="utf-8") as file:
             return json.load(file)
@@ -13,13 +12,11 @@ def load_devices():
 
 
 def save_devices(devices):
-    """Zapisuje słownik do pliku JSON z zachowaniem formatowania."""
     with open(FILE_NAME, "w", encoding="utf-8") as file:
         json.dump(devices, file, indent=2, ensure_ascii=False)
 
 
 def format_key(key):
-    """Automatycznie dodaje nawiasy, jeśli użytkownik ich nie wpisał."""
     key = key.strip()
     if key and not key.startswith("("):
         key = f"({key})"
@@ -27,7 +24,6 @@ def format_key(key):
 
 
 def show_devices(devices):
-    """Wyświetla aktualną zawartość bazy danych."""
     print("\n=== AKTUALNA LISTA URZĄDZEŃ ===")
     if not devices:
         print("[Baza jest pusta]")
@@ -41,7 +37,6 @@ def show_devices(devices):
 
 
 def add_or_update_device(devices):
-    """Dodaje nową pozycję lub modyfikuje istniejącą."""
     print("\n--- Dodawanie / Modyfikacja pozycji ---")
     image_name = input("Podaj nazwę obrazu (np. C3640-A3JS-M): ")
     image_name = format_key(image_name)
@@ -50,7 +45,6 @@ def add_or_update_device(devices):
         print("Błąd: Nazwa obrazu nie może być pusta!")
         return
 
-    # Jeśli klucz istnieje, informujemy użytkownika, że przechodzi w tryb edycji
     if image_name in devices:
         print(f"Modyfikujesz istniejący obraz. Obecny typ: '{devices[image_name]}'")
     
@@ -66,7 +60,6 @@ def add_or_update_device(devices):
 
 
 def delete_device(devices):
-    """Usuwa wskazaną pozycję z bazy."""
     print("\n--- Usuwanie pozycji ---")
     if not show_devices(devices):
         return
@@ -88,7 +81,6 @@ def delete_device(devices):
 
 def main():
     while True:
-        # Wczytujemy na świeżo przed każdym menu, żeby operować na aktualnych danych
         devices = load_devices()
 
         print("\n=== MENU ZARZĄDZANIA OBRAZAMI ===")

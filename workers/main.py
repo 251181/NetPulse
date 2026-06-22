@@ -10,8 +10,6 @@ from workers.SnmpPoller import AsyncSNMPPoller
 from workers.packetAnalyzer import MyAnalyzer
 from workers.snmp_analyzer import SNMPTelemetryAnalyzer
 
-monitored_devices = {}
-
     # Run with sudo!
 
 def getInterfaceFromUser():
@@ -49,18 +47,36 @@ async def start_app():
     poller = AsyncSNMPPoller()
     snmp_analyzer = SNMPTelemetryAnalyzer()
 
-    raw_hosts = scanForDevices(interface_SNMP) # ARP Scan
+    raw_hosts = [{'test': {'ip': '192.168.1.100'}}]
 
     await PollerManager().load_lookup_table("/home/AdminNetPulse/NetPulseApp/workers/devices.json")
 
-    monitored_devices = await PollerManager().poll_devices(poller, raw_hosts)
+    k = 0
+    reset_k = 6
+    pool_cooldown = 10
 
-    # pętla główna programu
+    print("WELCOME TO NETPULSE - YOUR NETWORK MONITORING SOLUTION")
     while True:
         print("Updating monitored devices and polling SNMP metrics...")
-        await PollerManager().poll_metrics(poller, snmp_analyzer)
-        await asyncio.sleep(10) # Interwał odpytywania
+        if k % reset_k == 0:
+            print("[*] Ponowne skanowanie sieci...")
+            new_raw_hosts = scanForDevices(interface_SNMP)
 
+            added = [h for h in new_raw_hosts if h not in raw_hosts]
+            removed = [h for h in raw_hosts if h not in new_raw_hosts]
+
+            if added or removed:
+                print("[*] Zmiany w sieci wykryte, aktualizuję listę monitorowanych urządzeń...")
+
+                print("dodane:", added)
+                print("usunięte:", removed)
+
+                raw_hosts = new_raw_hosts
+                await PollerManager().poll_devices(poller, raw_hosts)
+
+        await PollerManager().poll_metrics(poller, snmp_analyzer)
+        await asyncio.sleep(pool_cooldown)
+        k = (k + 1) % reset_k
 
 def main():
     try:
