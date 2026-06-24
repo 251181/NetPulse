@@ -6,17 +6,19 @@ from core.event_bus import push_event
 from db_tools.db_tools import store_log_async
 from datetime import datetime
 import time
+import ipaddress
 
 # Konfiguracja powiadomień IDS
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - [IDS ALERT] - %(message)s')
 
 class MyAnalyzer:
-    def __init__(self, analyzer_queue: multiprocessing.Queue):
+    def __init__(self, analyzer_queue: multiprocessing.Queue, safe_network: ipaddress.IPv4Network):
         # Cache do wykrywania ARP Spoofingu: {ip: deque([mac1, mac2], maxlen=2)}
         self.arp_cache = defaultdict(lambda: deque(maxlen=2))
 
         self.queue = analyzer_queue
         self.running = True
+        self.safe_network = safe_network
         self.start_loop_task = asyncio.create_task(self.start_loop())
 
         self.moving_average_detector = MovingAverageDetector()
@@ -198,6 +200,16 @@ class MyAnalyzer:
 
         # Krytyczne Porty (Próba dostępu do wrażliwych usług) ---
         if dst_port in [21, 22, 23, 445]:  # FTP, SSH, Telnet, SMB
+            try:
+                src_ip_obj = ipaddress.ip_address(pkt['src_ip'])
+                is_local = src_ip_obj in self.safe_network
+            except ValueError:
+                # Na wypadek, gdyby src_ip był None lub błędnym adresem
+                is_local = False
+
+            if is_local:
+                return  # Ignorujemy ruch z lokalnej sieci
+
             logging.warning(f"Suspicious access to critical port {dst_port} from {pkt['src_ip']}")
             
             event = {
@@ -254,6 +266,30 @@ class MovingAverageDetector:
             if (not self.anti_alert_spam) and (avg_long_pps > 5 and avg_short_pps > (avg_long_pps * self.multiplier)):
                 print(f"[ALERT] Wolumetryczny DoS! Obecny PPS: {avg_short_pps:.1f} "
                       f"jest > {self.multiplier}x większy niż norma ({avg_long_pps:.1f} PPS)")
+
+                event = {
+                    "timestamp": datetime.utcnow(),
+                    "type": "VOLUMETRIC_DDOS_DETECTED",
+                    "source": "packet_analysis",
+                    "threatLevel": "high",
+                    "ip": "0.0.0.0",
+                    "message": (
+                        f"Volumetric traffic anomaly detected. "
+                        f"Current traffic rate is {avg_short_pps:.1f} PPS, "
+                        f"which exceeds the baseline rate of {avg_long_pps:.1f} PPS "
+                        f"by a factor of {self.multiplier:.2f}. "
+                        f"This indicates a sudden surge in network traffic volume, "
+                        f"which may represent a distributed denial-of-service attack or burst traffic event."
+                    )
+                }
+
+                push_event(event.copy())
+
+                try:
+                    await store_log_async(event.copy())
+                except Exception:
+                    logging.exception("Failed to save log")
+                
                 self.anti_alert_spam = 1  # Resetujemy, by nie spamować alertami co sekundę
             elif not (avg_long_pps > 5 and avg_short_pps > (avg_long_pps * self.multiplier)):
                 self.anti_alert_spam = 0  # Resetujemy, gdy sytuacja wraca do normy
@@ -314,7 +350,32 @@ class StructuralAnomalyDetector:
                 if self.SYNACK1_anti_alert_spam:
                     continue
                 print(f"[ALERT] Wykryto DoS typu SYN Flood (Asymetria flag serwer nie wyrabia)! SYN/ACK Ratio = {ratio:.2f}")
-                # TODO ZAPIS DO BAZY I ALERT
+                
+                event = {
+                    "timestamp": datetime.utcnow(),
+                    "type": "SYN_FLOOD_DETECTED",
+                    "source": "packet_analysis",
+                    "threatLevel": "high",
+                    "ip": "0.0.0.0",
+                    "message": (
+                        f"A possible SYN Flood attack has been detected. "
+                        f"The observed SYN/ACK ratio is {ratio:.2f}, "
+                        f"with {current_syn} SYN packets recorded during the "
+                        f"monitoring interval. "
+                        f"This indicates that the server may be receiving "
+                        f"a large number of connection requests without "
+                        f"corresponding acknowledgements, which can lead to "
+                        f"resource exhaustion and denial of service."
+                    )
+                }
+
+                push_event(event.copy())
+
+                try:
+                    await store_log_async(event.copy())
+                except Exception:
+                    logging.exception("Failed to save log")
+
                 self.SYNACK1_anti_alert_spam = 1
 
             # ratio jest niskie (bo serwer daje rade odpowiadac), 
@@ -324,7 +385,32 @@ class StructuralAnomalyDetector:
                 print(f"[ALERT] Wykryto DoS typu SYN Flood (Agresywny wolumen)! "
                     f"Ratio w normie ({ratio:.2f}), bo serwer próbuje się bronić, "
                     f"ale wykryto aż {current_syn} pakietów SYN w ciągu 5 sekund!")
-                    # TODO ZAPIS DO BAZY I ALERT
+                    
+                event = {
+                    "timestamp": datetime.utcnow(),
+                    "type": "SYN_FLOOD_HIGH_VOLUME",
+                    "source": "packet_analysis",
+                    "threatLevel": "high",
+                    "ip": "0.0.0.0",
+                    "message": (
+                        f"A high-volume SYN Flood attack may be in progress. "
+                        f"The detector observed {current_syn} SYN packets "
+                        f"during the last 5-second interval. "
+                        f"Although the SYN/ACK ratio remains within normal "
+                        f"limits ({ratio:.2f}), the unusually high number of "
+                        f"connection requests suggests an aggressive flood of "
+                        f"TCP SYN packets that may exhaust network or server "
+                        f"resources."
+                    )
+                }
+
+                push_event(event.copy())
+
+                try:
+                    await store_log_async(event.copy())
+                except Exception:
+                    logging.exception("Failed to save log")
+
                 self.SYNACK2_anti_alert_spam = 1
 
             if not (ratio > self.max_syn_ack_ratio and current_syn >= 150):
@@ -339,7 +425,30 @@ class StructuralAnomalyDetector:
                     continue
                 print(f"[ALERT] Wykryto ROZPROSZONY DDoS! Unikalne adresy IP stanowią "
                       f"{ip_dispersion_ratio*100:.1f}% całego ruchu (Total: {current_total} pkt).")
-                      # TODO ZAPIS DO BAZY I ALERT
+                
+                event = {
+                    "timestamp": datetime.utcnow(),
+                    "type": "DISTRIBUTED_DENIAL_OF_SERVICE",
+                    "source": "packet_analysis",
+                    "threatLevel": "critical",
+                    "ip": ip,
+                    "message": (
+                        f"Potential distributed denial-of-service attack detected against the device. "
+                        f"Unique source IP addresses accounted for {ip_dispersion_ratio * 100:.1f}% "
+                        f"of the observed traffic during the monitoring interval, with a total of "
+                        f"{current_total} packets captured. This high level of source diversity "
+                        f"indicates that the traffic may originate from multiple coordinated hosts "
+                        f"or a botnet."
+                    )
+                }
+
+                push_event(event.copy())
+
+                try:
+                    await store_log_async(event.copy())
+                except Exception:
+                    logging.exception("Failed to save log")
+
                 self.unique_ip_anti_alert_spam = 1
             else:
                 self.unique_ip_anti_alert_spam = 0

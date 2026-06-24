@@ -2,6 +2,7 @@ from scapy.all import get_if_list, get_if_addr
 import time
 import asyncio
 import multiprocessing
+import ipaddress
 
 from workers.MySnifferClass import MySniffer
 from workers.SubnetScanner import scanForDevices
@@ -40,9 +41,8 @@ async def start_app():
     
     shared_queue = multiprocessing.Queue()
 
-    mySniffer = MySniffer(interface_PM, shared_queue, myIP=get_if_addr(interface_PM))
-    analyzer = MyAnalyzer(shared_queue)
-    #asyncio.run(analyzer.start_loop())
+    mySniffer = MySniffer(interface_PM, shared_queue, myIP=get_if_addr(interface_SNMP))
+    analyzer = MyAnalyzer(shared_queue, safe_network=ipaddress.ip_network(get_if_addr(interface_SNMP) + '/24', strict=False))
 
     poller = AsyncSNMPPoller()
     snmp_analyzer = SNMPTelemetryAnalyzer()

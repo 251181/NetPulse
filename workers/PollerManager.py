@@ -2,7 +2,8 @@ import asyncio
 import json
 import aiofiles
 
-from db_tools.db_tools import store_device, build_metrics, store_metrics, db
+from db_tools.db_tools import store_device, build_metrics, store_metrics
+from core.event_bus import push_event
 
 monitored_devices = {}
 
@@ -74,6 +75,8 @@ class PollerManager:
                 )
 
                 store_metrics(metrics)
+                
+                
                 '''
                 print(f"\n=== WSZYSTKIE DANE DLA URZĄDZENIA: {ip} ===")
                 # Pobieramy statyczne dane "base", które wykryliśmy podczas Discovery
@@ -111,7 +114,9 @@ class PollerManager:
                     analysis_tasks.append(task)
             else:
                 print(f"  - Nie można pobrać metryk dla {ip}") # TODO dodanie do bazy jako hosty z samym IP
-
+                
+        push_event({'type': 'DATA_REFRESH_SIGNAL'})
+        
         if analysis_tasks:
             await asyncio.gather(*analysis_tasks, return_exceptions=True)
         

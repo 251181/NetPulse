@@ -13,7 +13,6 @@ from routes.events import events_bp
 from routes.auth import auth_bp
 from routes.frontend import frontend_bp
 
-
 from workers.main import main
 from helpers.notification_manager import start_telegram_system
 

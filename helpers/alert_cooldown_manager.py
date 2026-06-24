@@ -1,13 +1,16 @@
 import time
 import threading
 
-ALERT_COOLDOWN = 1800
+ALERT_COOLDOWN = 0
 
 last_alerts = {}
 last_alerts_lock = threading.Lock()
 
 
 def should_send_alert(event):
+    if event['type'] == 'DATA_REFRESH_SIGNAL':
+        return True
+    
     key = (event["type"], event["ip"])
     now = time.time()
 

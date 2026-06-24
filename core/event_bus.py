@@ -30,4 +30,5 @@ def push_event(event):
         for q in clients:
             q.put(event)
 
-    notification_queue.put(event)
+    if event['type'] != 'DATA_REFRESH_SIGNAL':
+        notification_queue.put(event)
