@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Login</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        font-family: monospace;
+        background: #111;
+        color: #eee;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .login-box {
+        width: 360px;
+        text-align: center;
+    }
+
+    .logo {
+        width: 260px;
+        height: auto;
+        margin-bottom: 26px;
+        opacity: 0.95;
+    }
+
+    .login-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+    .login-btn {
+        width: 42px;
+        height: 38px;
+        background: #1c1c1c;
+        border: 1px solid #2a2a2a;
+        color: #888;
+        font-family: monospace;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+
+    .login-btn:hover {
+        color: #0cf;
+        border-color: #0cf;
+        background: #151515;
+    }
+
+    .password-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .input {
+        width: 100%;
+        font-family: monospace;
+        font-size: 12px;
+        background: #1c1c1c;
+        color: #eee;
+        border: 1px solid #2a2a2a;
+        padding: 10px;
+        padding-right: 42px;
+        outline: none;
+        text-align: center;
+        letter-spacing: 1px;
+    }
+
+    .input:focus {
+        border-color: #0cf;
+        background: #151515;
+    }
+
+    .toggle-btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: transparent;
+        border: none;
+        color: #555;
+        font-size: 12px;
+        cursor: pointer;
+        padding: 4px;
+        transition: color 0.15s ease;
+    }
+
+    .toggle-btn:hover {
+        color: #0cf;
+    }
+
+    .toggle-btn.active {
+        color: #0cf;
+    }
+
+    .cta {
+        margin-top: 14px;
+        font-size: 10px;
+        color: #555;
+        letter-spacing: 2px;
+    }
+
+    .error {
+        margin-top: 10px;
+        font-size: 10px;
+        color: #f55;
+        display: none;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="login-box">
+    <img src="/static/assets/NetPulse.png" class="logo" alt="Logo">
+
+    <form id="loginForm">
+        <div class="login-row">
+            <div class="password-wrapper">
+                <input
+                    type="password"
+                    id="password"
+                    class="input"
+                    placeholder="ENTER PASSWORD"
+                    autocomplete="off"
+                    autofocus
+                />
+                <button type="button" id="togglePassword" class="toggle-btn">👁</button>
+            </div>
+
+            <button type="submit" class="login-btn">→</button>
+        </div>
+
+        <div class="cta">ACCESS REQUIRED</div>
+        <div class="error" id="error">INVALID PASSWORD</div>
+    </form>
+</div>
+
+<script>
+const API = "https://172.16.253.1:8000";
+
+const passwordInput = document.getElementById("password");
+const toggleBtn = document.getElementById("togglePassword");
+const errorBox = document.getElementById("error");
+
+toggleBtn.addEventListener("click", function () {
+    const hidden = passwordInput.type === "password";
+
+    passwordInput.type = hidden ? "text" : "password";
+
+    if (hidden) {
+        toggleBtn.classList.add("active");
+        toggleBtn.textContent = "👁";
+    } else {
+        toggleBtn.classList.remove("active");
+        toggleBtn.textContent = "👁";
+    }
+});
+
+document.getElementById("loginForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    errorBox.style.display = "none";
+
+    const password = passwordInput.value;
+
+    try {
+        const res = await fetch(API + "/auth/login", {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ password })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.ok) {
+            window.location.href = API + "/";
+        } else {
+            errorBox.style.display = "block";
+        }
+
+    } catch (err) {
+        errorBox.style.display = "block";
+    }
+});
+</script>
+
+</body>
+</html>

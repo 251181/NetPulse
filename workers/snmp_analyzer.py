@@ -98,9 +98,9 @@ class SNMPTelemetryAnalyzer:
                         "message": (
                             f"The device is running an unusually large number of processes "
                             f"({total_procs} processes, load average: {load_1m:.1f}). "
-                            f"This may indicate a resource exhaustion attack or a malfunctioning application."
-                        )
+                            f"This may indicate a resource exhaustion attack or a malfunctioning application.")
                     }
+
                     push_event(event.copy())
 
                     try:
@@ -133,11 +133,11 @@ class SNMPTelemetryAnalyzer:
                         "message": (
                             f"The device is running out of memory. "
                             f"RAM usage is {ram_utilization_percent:.1f}% "
-                            f"with only {ram_free // 1024} MB of free memory remaining. "
-                            f"Disk swapping is currently {'active' if swap_changed else 'inactive'}. "
-                            f"This may indicate a resource exhaustion attack or a malfunctioning application."
-                        )
+                            f"with only {ram_free //  1024} MB of free memory remaining. "
+                            f"Disk swapping is currently {'active'  if swap_changed else  'inactive'}. "
+                            f"This may indicate a resource exhaustion attack or a malfunctioning application.")
                     }
+
                     push_event(event.copy())
 
                     try:
@@ -171,9 +171,9 @@ class SNMPTelemetryAnalyzer:
                         "message": (
                             f"The network device is under very high processing load. "
                             f"CPU usage has reached {cpu_5s}% on the last measurement. "
-                            f"This may affect network stability and cause delays or packet loss."
-                        )
+                            f"This may affect network stability and cause delays or packet loss.")
                     }
+
                     push_event(event.copy())
 
                     try:
@@ -194,7 +194,7 @@ class SNMPTelemetryAnalyzer:
                         )
 
                         event = {
-                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "timestamp": datetime.utcnow().isoformat() +  "Z",
                             "type": "MEMORY_LEAK_SUSPECTED",
                             "source": "snmp",
                             "threatLevel": "high",
@@ -202,10 +202,10 @@ class SNMPTelemetryAnalyzer:
                             "message": (
                                 f"Unusual memory usage increase detected on the device. "
                                 f"Processor memory usage has grown by approximately "
-                                f"{mem_delta / 1_000_000:.2f} MB in a short period while CPU usage remains low ({cpu_5s}%). "
-                                f"This may indicate a memory leak or abnormal process behavior."
-                            )
+                                f"{mem_delta /  1_000_000:.2f} MB in a short period while CPU usage remains low ({cpu_5s}%). "
+                                f"This may indicate a memory leak or abnormal process behavior.")
                         }
+
                         push_event(event.copy())
 
                         try:
@@ -243,14 +243,14 @@ class SNMPTelemetryAnalyzer:
                             "timestamp": datetime.utcnow(),
                             "type": "LINK_FLAPPING",
                             "source": "snmp",
-                            "threatLevel": "medium",
+                            "threatLevel": "low",
                             "ip": ip,
                             "message": (
                                 f"Network interface '{if_descr}' is changing its status frequently. "
                                 f"It switched from '{prev_iface.get('status')}' to '{oper_status}'. "
-                                f"This may cause temporary network interruptions or instability."
-                            )
+                                f"This may cause temporary network interruptions or instability.")
                         }
+
                         push_event(event.copy())
 
                         try:
@@ -276,10 +276,10 @@ class SNMPTelemetryAnalyzer:
                             "ip": ip,
                             "message": (
                                 f"Unusually high outgoing network traffic detected on interface '{if_descr}'. "
-                                f"Approximately {delta_out / 1_000_000:.2f} MB of data was sent in a short period. "
-                                f"This may indicate large data transfer or possible unauthorized data movement."
-                            )
+                                f"Approximately {delta_out /  1_000_000:.2f} MB of data was sent in a short period. "
+                                f"This may indicate large data transfer or possible unauthorized data movement.")
                         }
+
                         push_event(event.copy())
 
                         try:

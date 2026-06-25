@@ -115,6 +115,22 @@
     .main-header h2 { font-size: 15px; }
     .header-ip { color: #555; font-size: 11px; }
 
+    .logout-btn {
+        background: #1c1c1c;
+        color: #888;
+        border: 1px solid #2a2a2a;
+        font-family: monospace;
+        font-size: 10px;
+        letter-spacing: 1px;
+        padding: 5px 12px;
+        cursor: pointer;
+    }
+
+    .logout-btn:hover {
+        color: #f55;
+        border-color: #f55;
+    }
+
     .section { padding: 12px 16px; border-bottom: 1px solid #1a1a1a; }
     .section-label { color: #555; font-size: 10px; letter-spacing: 1px; margin-bottom: 8px; }
 
@@ -283,11 +299,17 @@
 <body>
 
 <div class="topbar">
-    <img src="static/assets/NetPulse.png" class="logo-image" alt="NetPulse">
+    <img src="/static/assets/NetPulse.png" class="logo-image" alt="NetPulse">
     <div class="nav-tabs">
         <span class="nav-tab active" id="tab-devices">DEVICES</span>
         <span class="nav-tab"        id="tab-logs">LOGS</span>
     </div>
+
+    <div style="margin-left:auto;">
+    <button id="logout-btn" class="logout-btn">
+        LOGOUT
+    </button>
+</div>
 </div>
 
 <div id="view-devices">
@@ -341,7 +363,7 @@
 </div>
 
 <script>
-const API_BASE = "http://172.16.253.1:8000";
+const API_BASE = "https://172.16.253.1:8000";
 
 let devices = [];
 var MOCK_LOGS = [];
@@ -353,9 +375,15 @@ var chartPoints    = 360;
 async function init() {
     try {
         const [devicesRes, logsRes, metricsRes] = await Promise.all([
-            fetch(`${API_BASE}/devices`),
-            fetch(`${API_BASE}/logs`),
-            fetch(`${API_BASE}/metrics`)
+            fetch(`${API_BASE}/devices`, {
+                credentials: "include"
+            }),
+            fetch(`${API_BASE}/logs`, {
+                credentials: "include"
+            }),
+            fetch(`${API_BASE}/metrics`, {
+                credentials: "include"
+            })
         ]);
 
         devices      = await devicesRes.json()  || [];
@@ -397,9 +425,15 @@ function connectSSE() {
 async function refreshData() {
     try {
         const [devicesRes, logsRes, metricsRes] = await Promise.all([
-            fetch(`${API_BASE}/devices`),
-            fetch(`${API_BASE}/logs`),
-            fetch(`${API_BASE}/metrics`)
+            fetch(`${API_BASE}/devices`, {
+                credentials: "include"
+            }),
+            fetch(`${API_BASE}/logs`, {
+                credentials: "include"
+            }),
+            fetch(`${API_BASE}/metrics`, {
+                credentials: "include"
+            })
         ]);
 
         devices      = await devicesRes.json()  || [];
@@ -873,10 +907,29 @@ document.addEventListener("click", function(e) {
         return;
     }
 
+    if (e.target && e.target.id === "logout-btn") {
+        logout();
+        return;
+    }
+
     //nav tabs
     if (e.target && e.target.id === "tab-devices") { showView("devices"); return; }
     if (e.target && e.target.id === "tab-logs")    { showView("logs");    return; }
 });
+
+async function logout() {
+    try {
+        await fetch(`${API_BASE}/auth/logout`, {
+            method: "POST",
+            credentials: "include"
+        });
+
+        window.location.href = "/auth/login";
+    }
+    catch (err) {
+        console.error("Logout failed:", err);
+    }
+}
 
 //log filters
 document.getElementById("filter-ip").addEventListener("change",    filterLogs);

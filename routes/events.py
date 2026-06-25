@@ -5,6 +5,7 @@ from core.event_bus import register_client, unregister_client
 
 events_bp = Blueprint("events", __name__)
 
+PUBLIC_PATHS = ["/login", "/auth", "/static"]
 
 def event_generator():
     q = register_client()

@@ -67,14 +67,13 @@ class MyAnalyzer:
                     "timestamp": datetime.utcnow(),
                     "type": "TCP_XMAS_SCAN",
                     "source": "packet_analysis",
-                    "threatLevel": "high",
+                    "threatLevel": "medium",
                     "ip": pkt["dst_ip"],
                     "message": (
                         f"XMAS scan detected targeting {pkt['dst_ip']}:{pkt['dst_port']} "
                         f"from {pkt['src_ip']}:{pkt['src_port']}. "
                         f"TCP packet has FIN, PSH, and URG flags set simultaneously, "
-                        f"which is commonly used for stealth port scanning and network reconnaissance."
-                    )
+                        f"which is commonly used for stealth port scanning and network reconnaissance.")
                 }
 
                 push_event(event.copy())
@@ -92,14 +91,13 @@ class MyAnalyzer:
                     "timestamp": datetime.utcnow(),
                     "type": "TCP_NULL_SCAN",
                     "source": "packet_analysis",
-                    "threatLevel": "high",
+                    "threatLevel": "medium",
                     "ip": pkt["dst_ip"],
                     "message": (
                         f"NULL scan detected targeting {pkt['dst_ip']}:{pkt['dst_port']} "
                         f"from {pkt['src_ip']}:{pkt['src_port']}. "
                         f"TCP packet was sent with no flags set, which is commonly used "
-                        f"for stealth port scanning and reconnaissance of firewall rules."
-                    )
+                        f"for stealth port scanning and reconnaissance of firewall rules.")
                 }
 
                 push_event(event.copy())
@@ -117,14 +115,13 @@ class MyAnalyzer:
                     "timestamp": datetime.utcnow(),
                     "type": "TCP_SYN_FIN_ANOMALY",
                     "source": "packet_analysis",
-                    "threatLevel": "high",
+                    "threatLevel": "medium",
                     "ip": pkt["dst_ip"],
                     "message": (
                         f"SYN-FIN anomaly detected targeting {pkt['dst_ip']}:{pkt['dst_port']} "
                         f"from {pkt['src_ip']}:{pkt['src_port']}. "
                         f"TCP packet contains both SYN and FIN flags, which is not valid "
-                        f"in normal communication and may indicate stealth scanning or packet manipulation."
-                    )
+                        f"in normal communication and may indicate stealth scanning or packet manipulation.")
                 }
 
                 push_event(event.copy())
@@ -153,8 +150,7 @@ class MyAnalyzer:
                         f"Packet originated from {pkt['src_ip']}. "
                         f"Unusually large ICMP payload detected ({payload_len} bytes) with high entropy "
                         f"({payload_entropy:.2f}/8 scale), which suggests encoded or encrypted data transfer "
-                        f"over ICMP protocol instead of normal ping traffic."
-                    )
+                        f"over ICMP protocol instead of normal ping traffic.")
                 }
 
                 push_event(event.copy())
@@ -185,8 +181,7 @@ class MyAnalyzer:
                             f"ARP spoofing detected for IP {psrc}. "
                             f"MAC address changed from {history[-1]} to {hwsrc}. "
                             f"Packet originated from ARP reply operation indicating possible "
-                            f"man-in-the-middle attempt or local network impersonation attack."
-                        )
+                            f"man-in-the-middle attempt or local network impersonation attack.")
                     }
 
                     push_event(event.copy())
@@ -216,14 +211,13 @@ class MyAnalyzer:
                 "timestamp": datetime.utcnow(),
                 "type": "SUSPICIOUS_CRITICAL_PORT_ACCESS",
                 "source": "packet_analysis",
-                "threatLevel": "medium",
+                "threatLevel": "low",
                 "ip": pkt["dst_ip"],
                 "message": (
                     f"Suspicious connection attempt detected on critical service port {dst_port} "
                     f"targeting {pkt['dst_ip']}:{dst_port} from {pkt['src_ip']}:{pkt['src_port']}. "
                     f"These ports are commonly used by FTP, SSH, Telnet, and SMB services, "
-                    f"which are frequent targets for brute-force attacks and unauthorized access attempts."
-                )
+                    f"which are frequent targets for brute-force attacks and unauthorized access attempts.")
             }
 
             push_event(event.copy())
@@ -271,7 +265,7 @@ class MovingAverageDetector:
                     "timestamp": datetime.utcnow(),
                     "type": "VOLUMETRIC_DDOS_DETECTED",
                     "source": "packet_analysis",
-                    "threatLevel": "high",
+                    "threatLevel": "critical",
                     "ip": "0.0.0.0",
                     "message": (
                         f"Volumetric traffic anomaly detected. "
@@ -279,8 +273,7 @@ class MovingAverageDetector:
                         f"which exceeds the baseline rate of {avg_long_pps:.1f} PPS "
                         f"by a factor of {self.multiplier:.2f}. "
                         f"This indicates a sudden surge in network traffic volume, "
-                        f"which may represent a distributed denial-of-service attack or burst traffic event."
-                    )
+                        f"which may represent a distributed denial-of-service attack or burst traffic event.")
                 }
 
                 push_event(event.copy())
@@ -355,7 +348,7 @@ class StructuralAnomalyDetector:
                     "timestamp": datetime.utcnow(),
                     "type": "SYN_FLOOD_DETECTED",
                     "source": "packet_analysis",
-                    "threatLevel": "high",
+                    "threatLevel": "critical",
                     "ip": "0.0.0.0",
                     "message": (
                         f"A possible SYN Flood attack has been detected. "
@@ -365,8 +358,7 @@ class StructuralAnomalyDetector:
                         f"This indicates that the server may be receiving "
                         f"a large number of connection requests without "
                         f"corresponding acknowledgements, which can lead to "
-                        f"resource exhaustion and denial of service."
-                    )
+                        f"resource exhaustion and denial of service.")
                 }
 
                 push_event(event.copy())
@@ -399,9 +391,7 @@ class StructuralAnomalyDetector:
                         f"Although the SYN/ACK ratio remains within normal "
                         f"limits ({ratio:.2f}), the unusually high number of "
                         f"connection requests suggests an aggressive flood of "
-                        f"TCP SYN packets that may exhaust network or server "
-                        f"resources."
-                    )
+                        f"TCP SYN packets that may exhaust network resources.")
                 }
 
                 push_event(event.copy())
@@ -434,12 +424,10 @@ class StructuralAnomalyDetector:
                     "ip": ip,
                     "message": (
                         f"Potential distributed denial-of-service attack detected against the device. "
-                        f"Unique source IP addresses accounted for {ip_dispersion_ratio * 100:.1f}% "
+                        f"Unique source IP addresses accounted for {ip_dispersion_ratio *  100:.1f}% "
                         f"of the observed traffic during the monitoring interval, with a total of "
-                        f"{current_total} packets captured. This high level of source diversity "
-                        f"indicates that the traffic may originate from multiple coordinated hosts "
-                        f"or a botnet."
-                    )
+                        f"{current_total} packets captured. This level of source diversity indicates"
+                        f"that the traffic may originate from multiple coordinated hosts / a botnet.")
                 }
 
                 push_event(event.copy())
