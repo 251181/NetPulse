@@ -4,7 +4,7 @@ import logging
 from collections import defaultdict, deque
 from core.event_bus import push_event
 from db_tools.db_tools import store_log_async
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 import ipaddress
 
@@ -25,7 +25,7 @@ class MyAnalyzer:
         self.structural_anomaly_detector = StructuralAnomalyDetector()
 
     async def start_loop(self):
-        print("[PACKET ANALYZER] Uruchomiono asynchroniczny analizator anomalii.")
+        print("[PACKET ANALYZER] Starting asynchronous anomaly analyzer.")
         logging.warning(f"Analyzer started, waiting for packets...")
         
         loop_task_structural = asyncio.create_task(self.structural_anomaly_detector.analysis_loop())
@@ -41,10 +41,10 @@ class MyAnalyzer:
                     logging.exception(f"Error processing packet: {packet_data}")
                     
         except asyncio.CancelledError:
-            logging.info("Główna pętla analizatora została zatrzymana.")
+            logging.info("Main loop of the analyzer has been stopped.")
             
         finally:
-            print("[PACKET ANALYZER] Zamykanie zadań detekcji anomalii...")
+            print("[PACKET ANALYZER] Closing anomaly detection tasks...")
             loop_task_structural.cancel()
             loop_task_moving_avg.cancel()
             
@@ -64,7 +64,7 @@ class MyAnalyzer:
                 logging.warning(f"XMAS Scan detected from {pkt['src_ip']}:{pkt['src_port']} -> {pkt['dst_ip']}:{pkt['dst_port']}")
             
                 event = {
-                    "timestamp": datetime.utcnow(),
+                    "timestamp": datetime.now(timezone.utc),
                     "type": "TCP_XMAS_SCAN",
                     "source": "packet_analysis",
                     "threatLevel": "medium",
@@ -88,7 +88,7 @@ class MyAnalyzer:
                 logging.warning(f"NULL Scan detected from {pkt['src_ip']}:{pkt['src_port']}")
 
                 event = {
-                    "timestamp": datetime.utcnow(),
+                    "timestamp": datetime.now(timezone.utc),
                     "type": "TCP_NULL_SCAN",
                     "source": "packet_analysis",
                     "threatLevel": "medium",
@@ -112,7 +112,7 @@ class MyAnalyzer:
                 logging.warning(f"Suspicious SYN-FIN packet from {pkt['src_ip']}")
 
                 event = {
-                    "timestamp": datetime.utcnow(),
+                    "timestamp": datetime.now(timezone.utc),
                     "type": "TCP_SYN_FIN_ANOMALY",
                     "source": "packet_analysis",
                     "threatLevel": "medium",
@@ -140,7 +140,7 @@ class MyAnalyzer:
                 logging.warning(f"Potential ICMP Tunneling/Data Exfiltration from {pkt['src_ip']}. Payload len: {payload_len}B, Entropy: {payload_entropy}")
         
                 event = {
-                    "timestamp": datetime.utcnow(),
+                    "timestamp": datetime.now(timezone.utc),
                     "type": "ICMP_TUNNELING_SUSPECTED",
                     "source": "packet_analysis",
                     "threatLevel": "high",
@@ -172,7 +172,7 @@ class MyAnalyzer:
                     logging.critical(f"ARP SPOOFING DETECTED! IP {psrc} moved from {history[-1]} to {hwsrc}")
 
                     event = {
-                        "timestamp": datetime.utcnow(),
+                        "timestamp": datetime.now(timezone.utc),
                         "type": "ARP_SPOOFING_DETECTED",
                         "source": "packet_analysis",
                         "threatLevel": "critical",
@@ -208,7 +208,7 @@ class MyAnalyzer:
             logging.warning(f"Suspicious access to critical port {dst_port} from {pkt['src_ip']}")
             
             event = {
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc),
                 "type": "SUSPICIOUS_CRITICAL_PORT_ACCESS",
                 "source": "packet_analysis",
                 "threatLevel": "low",
@@ -258,11 +258,11 @@ class MovingAverageDetector:
             avg_short_pps = len(self.short_history) / self.short_window_sec
         
             if (not self.anti_alert_spam) and (avg_long_pps > 5 and avg_short_pps > (avg_long_pps * self.multiplier)):
-                print(f"[ALERT] Wolumetryczny DoS! Obecny PPS: {avg_short_pps:.1f} "
-                      f"jest > {self.multiplier}x większy niż norma ({avg_long_pps:.1f} PPS)")
+                print(f"[ALERT] Volumetric DoS! Current PPS: {avg_short_pps:.1f} "
+                      f"is > {self.multiplier}x larger than the baseline ({avg_long_pps:.1f} PPS)")
 
                 event = {
-                    "timestamp": datetime.utcnow(),
+                    "timestamp": datetime.now(timezone.utc),
                     "type": "VOLUMETRIC_DDOS_DETECTED",
                     "source": "packet_analysis",
                     "threatLevel": "critical",
@@ -342,10 +342,10 @@ class StructuralAnomalyDetector:
             if ratio > self.max_syn_ack_ratio and current_syn >= 150:
                 if self.SYNACK1_anti_alert_spam:
                     continue
-                print(f"[ALERT] Wykryto DoS typu SYN Flood (Asymetria flag serwer nie wyrabia)! SYN/ACK Ratio = {ratio:.2f}")
+                print(f"[ALERT] Detected DoS type SYN Flood (Asymmetry of flags, server not responding)! SYN/ACK Ratio = {ratio:.2f}")
                 
                 event = {
-                    "timestamp": datetime.utcnow(),
+                    "timestamp": datetime.now(timezone.utc),
                     "type": "SYN_FLOOD_DETECTED",
                     "source": "packet_analysis",
                     "threatLevel": "critical",
@@ -374,12 +374,12 @@ class StructuralAnomalyDetector:
             elif current_syn > 500:
                 if self.SYNACK2_anti_alert_spam:
                     continue
-                print(f"[ALERT] Wykryto DoS typu SYN Flood (Agresywny wolumen)! "
-                    f"Ratio w normie ({ratio:.2f}), bo serwer próbuje się bronić, "
-                    f"ale wykryto aż {current_syn} pakietów SYN w ciągu 5 sekund!")
+                print(f"[ALERT] Detected DoS type SYN Flood (High Volume)! "
+                    f"Ratio in normal range ({ratio:.2f}), but the server is trying to defend itself, "
+                    f"and {current_syn} SYN packets were detected within 5 seconds!")
                     
                 event = {
-                    "timestamp": datetime.utcnow(),
+                    "timestamp": datetime.now(timezone.utc),
                     "type": "SYN_FLOOD_HIGH_VOLUME",
                     "source": "packet_analysis",
                     "threatLevel": "high",
@@ -413,11 +413,11 @@ class StructuralAnomalyDetector:
             if ip_dispersion_ratio > self.max_unique_ip_ratio and current_total > 500:
                 if self.unique_ip_anti_alert_spam:
                     continue
-                print(f"[ALERT] Wykryto ROZPROSZONY DDoS! Unikalne adresy IP stanowią "
-                      f"{ip_dispersion_ratio*100:.1f}% całego ruchu (Total: {current_total} pkt).")
+                print(f"[ALERT] Detected DISTRIBUTED DDoS! Unique IP addresses account for "
+                      f"{ip_dispersion_ratio*100:.1f}% of the total traffic (Total: {current_total} packets).")
                 
                 event = {
-                    "timestamp": datetime.utcnow(),
+                    "timestamp": datetime.now(timezone.utc),
                     "type": "DISTRIBUTED_DENIAL_OF_SERVICE",
                     "source": "packet_analysis",
                     "threatLevel": "critical",

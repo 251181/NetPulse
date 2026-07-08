@@ -2,8 +2,9 @@ from pymongo import MongoClient
 from pprint import pprint
 from datetime import datetime, timezone
 import asyncio
+import os
 
-client = MongoClient("mongodb://localhost:27017")
+client = MongoClient(os.getenv("MONGO_URI"))
 db = client["NetPulse"]
 
 

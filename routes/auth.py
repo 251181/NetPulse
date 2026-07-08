@@ -1,8 +1,6 @@
-from flask import Blueprint, request, session, jsonify, send_from_directory, redirect
+from flask import Blueprint, request, session, jsonify, send_from_directory, redirect, current_app
 
 auth_bp = Blueprint("auth", __name__)
-
-PASSWORD = "@NetPulseAdmin"
 
 
 @auth_bp.route("/auth/login", methods=["GET"])
@@ -18,7 +16,7 @@ def login():
     data = request.get_json()
     password = data.get("password")
 
-    if password == PASSWORD:
+    if password == current_app.config["AUTH_PASSWORD"]:
         session["authenticated"] = True
         return jsonify({"ok": True})
 

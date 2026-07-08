@@ -33,7 +33,7 @@ def check_interface_families(interface):
 
 
 def scanForDevices(interface):
-    print("[*] Rozpoczynam jednorazowe skanowanie sieci...")
+    print("[*] Starting network scan...")
     status = check_interface_families(interface)
     clients = []
 
@@ -54,7 +54,7 @@ def scanForDevices(interface):
             else:
                 print(f"Skipping {ip_addr} - network {network_cidr} already scanned.")
 
-    print(f"[*] Zakończono skanowanie sieci. Znaleziono {len(clients)} urządzeń.")
+    print(f"[*] Finished network scan. Found {len(clients)} devices.")
     return clients
 
 def ARPscan(interface, ip_addr, netmask):

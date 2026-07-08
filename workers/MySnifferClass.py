@@ -22,7 +22,7 @@ class MySniffer:
         )
         self.myIP = myIP
         self.sniffer.start()
-        print(f"[SNIFFER] Nasłuchiwanie na \"{interface}\"... Trafia prosto do analizatora.")
+        print(f"[SNIFFER] Listening on \"{interface}\"... Packets directed straight to the analyzer.")
     
     def __del__(self):
         try:
@@ -109,7 +109,7 @@ class MySniffer:
             }
 
             self.analyzer_queue.put_nowait(data)
-            #print(f"[SNIFFER] Złapano pakiet: {data}")
+            #print(f"[SNIFFER] Catched packet {packet.time}: {data}")
 
         except Exception as e:
-            print(f"[SNIFFER][ERROR] Callback padł na pakiecie: {e}")
+            print(f"[SNIFFER][ERROR] Callback got down on packet {packet.time}: {e}")

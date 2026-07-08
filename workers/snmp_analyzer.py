@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 from core.event_bus import push_event
 from db_tools.db_tools import store_log_async
@@ -58,13 +58,13 @@ class SNMPTelemetryAnalyzer:
                     # Eliminuje to fałszywe alarmy wywołane naturalnym szumem sieci.
                     if delta_errors > 3 and cpu_idle > 90.0:
                         logging.warning(
-                            f"[ATAK: STEALTH PORT SCAN] Host: {ip} | "
+                            f"[ATACK: STEALTH PORT SCAN] Host: {ip} | "
                             f"Detected +{delta_errors} rejected/bad TCP packets while CPU is IDLE ({cpu_idle}%). "
                             f"Target is being reconned by low-rate scanner (Total errors: {tcp_errors})."
                         )
 
                         event = {
-                            "timestamp": datetime.utcnow(),
+                            "timestamp": datetime.now(timezone.utc),
                             "type": "STEALTH_PORT_SCAN",
                             "source": "snmp",
                             "threatLevel": "medium",
@@ -85,12 +85,12 @@ class SNMPTelemetryAnalyzer:
                 # Fork-Bomb / Skryptowy DoS
                 if total_procs > 300 or load_1m > 12.0:
                     logging.critical(
-                        f"[ATAK: FORK-BOMB / RESOURCE EXHAUSTION] Host: {ip} | "
+                        f"[ATACK: FORK-BOMB / RESOURCE EXHAUSTION] Host: {ip} | "
                         f"Table of processes is exploding! Total processes: {total_procs}, Load Average 1m: {load_1m}."
                     )
 
                     event = {
-                        "timestamp": datetime.utcnow(),
+                        "timestamp": datetime.now(timezone.utc),
                         "type": "RESOURCE_EXHAUSTION",
                         "source": "snmp",
                         "threatLevel": "critical",
@@ -117,15 +117,15 @@ class SNMPTelemetryAnalyzer:
                         swap_changed = int(perf["swap_free"]) < int(prev_perf["swap_free"])
                         
                     logging.critical(
-                        f"[ATAK: RESOURCE STARVATION] Host: {ip} | "
-                        f"Wykryto maksymalne wysycenie pamięci operacyjnej! "
-                        f"Prawdziwe zużycie RAM: {ram_utilization_percent:.2f}% | "
-                        f"Fizycznie wolny RAM: {ram_free // 1024}MB, Cache: {ram_cached // 1024}MB. "
-                        f"Aktywne swapowanie na dysk: {swap_changed}."
+                        f"[ATACK: RESOURCE STARVATION] Host: {ip} | "
+                        f"Detected maximum memory utilization! "
+                        f"Actual RAM usage: {ram_utilization_percent:.2f}% | "
+                        f"Physically free RAM: {ram_free // 1024}MB, Cache: {ram_cached // 1024}MB. "
+                        f"Active swap usage: {swap_changed}."
                     )
 
                     event = {
-                        "timestamp": datetime.utcnow(),
+                        "timestamp": datetime.now(timezone.utc),
                         "type": "RESOURCE_STARVATION",
                         "source": "snmp",
                         "threatLevel": "critical",
@@ -158,12 +158,12 @@ class SNMPTelemetryAnalyzer:
                 # --- KONKRET 1B: Cisco Control Plane Exhaustion (Skalibrowany próg) ---
                 if cpu_5s > 60:
                     logging.critical(
-                        f"[ATAK: CONTROL PLANE FLOOD] Cisco: {ip} | "
+                        f"[ATACK: CONTROL PLANE FLOOD] Cisco: {ip} | "
                         f"Router CPU reached critical limit: {cpu_5s}%! Core routing processes are locked."
                     )
 
                     event = {
-                        "timestamp": datetime.utcnow(),
+                        "timestamp": datetime.now(timezone.utc),
                         "type": "CONTROL_PLANE_EXHAUSTION",
                         "source": "snmp",
                         "threatLevel": "critical",
@@ -188,13 +188,13 @@ class SNMPTelemetryAnalyzer:
                     
                     if mem_delta > 12_000_000 and cpu_5s < 15:
                         logging.error(
-                            f"[ATAK: ROUTER EXPLOIT / MEMORY LEAK] Cisco: {ip} | "
+                            f"[ATACK: ROUTER EXPLOIT / MEMORY LEAK] Cisco: {ip} | "
                             f"Processor memory pool leaked +{mem_delta / 1_000_000:.2f} MB in 10s without CPU activity! "
                             f"Suspected malicious payload causing memory allocation leak."
                         )
 
                         event = {
-                            "timestamp": datetime.utcnow().isoformat() +  "Z",
+                            "timestamp": datetime.now(timezone.utc),
                             "type": "MEMORY_LEAK_SUSPECTED",
                             "source": "snmp",
                             "threatLevel": "high",
@@ -240,7 +240,7 @@ class SNMPTelemetryAnalyzer:
                         )
 
                         event = {
-                            "timestamp": datetime.utcnow(),
+                            "timestamp": datetime.now(timezone.utc),
                             "type": "LINK_FLAPPING",
                             "source": "snmp",
                             "threatLevel": "low",
@@ -264,12 +264,12 @@ class SNMPTelemetryAnalyzer:
                     # Eksfiltracja Danych / Tunelowanie (Nienaturalny wzrost ruchu) ---
                     if delta_out > 15_000_000 and "lo" not in if_descr.lower():
                         logging.warning(
-                            f"[ATAK: DATA EXFILTRATION DETECTED] Host: {ip} | "
+                            f"[ATACK: DATA EXFILTRATION DETECTED] Host: {ip} | "
                             f"Anomalous high outbound traffic burst on [{if_descr}]: +{delta_out / 1_000_000:.2f} MB leaving the node!"
                         )
 
                         event = {
-                            "timestamp": datetime.utcnow(),
+                            "timestamp": datetime.now(timezone.utc),
                             "type": "ANOMALOUS_OUTBOUND_TRAFFIC",
                             "source": "snmp",
                             "threatLevel": "high",

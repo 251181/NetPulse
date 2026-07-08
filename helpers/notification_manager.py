@@ -3,13 +3,14 @@ import time
 import threading
 from core.event_bus import notification_queue
 from db_tools.db_tools import store_subscriber, get_subscribers, remove_subscriber
+from config import Config
 
 from zoneinfo import ZoneInfo
 WARSAW_TZ = ZoneInfo("Europe/Warsaw")
 
 
-TOKEN = "8951336705:AAG4K_cwT2FLH3po48JaJ1cMNK7oRF0ZI3k"
-SECRET_PASSWORD = "@NetPulseAdmin"
+TOKEN = Config.TELEGRAM_BOT_TOKEN
+SECRET_PASSWORD = Config.TELEGRAM_BOT_PASSWORD
 
 last_update_id = 0
 

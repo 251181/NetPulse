@@ -1,7 +1,7 @@
 import time
 import threading
 
-ALERT_COOLDOWN = 0
+ALERT_COOLDOWN = 5
 
 last_alerts = {}
 last_alerts_lock = threading.Lock()

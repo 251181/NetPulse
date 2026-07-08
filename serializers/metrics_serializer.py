@@ -20,7 +20,7 @@ def serialize_device(ip, metrics):
     for m in metrics:
         cpu.append(m.get("cpu"))
         ram.append(m.get("ram"))
-        timestamps.append(m["timestamp"].isoformat())
+        timestamps.append(m["timestamp"])
 
         rx = m["rx_bytes"]
         tx = m["tx_bytes"]

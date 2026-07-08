@@ -27,13 +27,13 @@ class PollerManager:
                 data = json.loads(content)
                 devices_lookup_table.clear()
                 devices_lookup_table.update(data)
-                print(f"[*] Pomyślnie wczytano {len(data)} reguł mapowania urządzeń.")
+                print(f"[*] Successfully loaded {len(data)} device mapping rules.")
 
         except FileNotFoundError:
-            print(f"[!] Błąd: Plik {path} nie istnieje. Słownik mapowania jest pusty!")
+            print(f"[!] Error: File {path} does not exist. Mapping dictionary is empty!")
 
         except json.JSONDecodeError:
-            print(f"[!] Błąd: Plik {path} nie jest poprawnym plikiem JSON!")
+            print(f"[!] Error: File {path} is not a valid JSON file!")
 
 
     async def poll_devices(self, poller, raw_hosts):
@@ -45,20 +45,20 @@ class PollerManager:
                 data.update({'device_type': resolve_device_type(data['sysDescr'])})
 
                 monitored_devices[data['ip']] = data
-                print(f"[+] Dodano do monitoringu: {data['ip']} [{data['vendor']}]")
+                print(f"[+] Added to monitoring: {data['ip']} [{data['vendor']}]")
                 store_device(ip=data["ip"], general_info=data)
             else:
-                print(f"[-] Urządzenie {data['ip']} jest niedostępne (status: {data['status']})")
+                print(f"[-] Device {data['ip']} is unavailable (status: {data['status']})")
                 store_device(ip=data["ip"], general_info={"status": data['status']})
 
         return monitored_devices
 
     async def poll_metrics(self, poller, snmp_analyzer=None):
         if not monitored_devices:
-            print("[!] Brak urządzeń do monitorowania.")
+            print("[!] No devices to monitor.")
             return
 
-        print("[*] Pobieranie metryk wydajnościowych dla monitorowanych urządzeń...")
+        print("[*] Fetching performance metrics for monitored devices...")
         metric_tasks = [poller.get_device_metrics(data) for data in monitored_devices.values()]
         metrics_results = await asyncio.gather(*metric_tasks)
 
@@ -78,23 +78,20 @@ class PollerManager:
                 
                 
                 '''
-                print(f"\n=== WSZYSTKIE DANE DLA URZĄDZENIA: {ip} ===")
-                # Pobieramy statyczne dane "base", które wykryliśmy podczas Discovery
+                # DEBUGGING: Displaying fetched data in a structured format
+                print(f"\n=== ALL DATA FOR DEVICE: {ip} ===")
                 device_info = monitored_devices.get(ip, {})
-                print(f"[BASE INFO] Nazwa: {device_info.get('sysName')}, Vendor: {device_info.get('vendor')}, Typ: {device_info.get('device_type')}")
+                print(f"[BASE INFO] Name: {device_info.get('sysName')}, Vendor: {device_info.get('vendor')}, Type: {device_info.get('device_type')}")
 
-                # Wypisujemy dynamiczne metryki z obiektu result (CPU/RAM/System)
                 print(f"[PERFORMANCE]: {result.get('performance')}")
 
-                # Wypisujemy interfejsy wraz z pełnymi statystykami IDS (Pakiety, Błędy, Wolumetryka)
-                print(f"[INTERFACES] (Liczba zebranych: {len(result.get('interfaces', []))}):")
+                print(f"[INTERFACES] (Number of collected: {len(result.get('interfaces', []))}):")
                 for iface in result.get("interfaces", []):
                     # Wyciągamy opisy i statusy
                     if_num = iface.get('if_number')
                     if_descr = iface.get('ifDescr', 'Unknown')
                     status = iface.get('ifOperStatus', 'Unknown')
                     
-                    # Wyciągamy liczniki wolumetryczne i pakietowe pod IDS
                     in_bytes = iface.get('ifInOctets', '0')
                     out_bytes = iface.get('ifOutOctets', '0')
                     in_pkts = iface.get('ifInUcastPkts', '0')
@@ -102,22 +99,22 @@ class PollerManager:
                     in_errs = iface.get('ifInErrors', '0')
                     out_errs = iface.get('ifOutErrors', '0')
                     
-                    # Formatujemy wyjście w jedną, czytelną linię per port
                     print(
                         f"    - Port {if_num} ({if_descr}) -> Status: {status} | "
                         f"Rx: {in_bytes}B ({in_pkts} pkts), Errors: {in_errs} | "
                         f"Tx: {out_bytes}B ({out_pkts} pkts), Errors: {out_errs}"
                     )
                     '''
+
                 if snmp_analyzer:
                     task = asyncio.create_task(snmp_analyzer.analyze_metrics(result))
                     analysis_tasks.append(task)
             else:
-                print(f"  - Nie można pobrać metryk dla {ip}") # TODO dodanie do bazy jako hosty z samym IP
+                print(f"  - Cannot fetch metrics for {ip}") # TODO add to database as hosts with IP only
                 
         push_event({'type': 'DATA_REFRESH_SIGNAL'})
         
         if analysis_tasks:
             await asyncio.gather(*analysis_tasks, return_exceptions=True)
         
-        print("[*] Koniec pobierania metryk wydajnościowych")
+        print("[*] Finished fetching performance metrics")

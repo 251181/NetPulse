@@ -240,7 +240,7 @@ class AsyncSNMPPoller:
                         else:
                             results['performance'][metric_names[i]] = None
             except Exception as e:
-                print(f"[!] Błąd CPU/RAM dla {ip}: {e}")
+                print(f"[!] Error fetching CPU/RAM for {ip}: {e}")
 
         # Generujemy bazowe porty (1-24) dla klasycznych routerów
         target_indices = list(range(1, min(if_count, 24) + 1))
@@ -267,6 +267,7 @@ class AsyncSNMPPoller:
 
         for port_res in port_results:
             if not port_res or isinstance(port_res, Exception):
+                print(f"[!] Error fetching port data for index {idx}: {port_res}")
                 continue
                 
             p_idx = port_res["port_idx"]
@@ -284,7 +285,6 @@ class AsyncSNMPPoller:
         port_results = await asyncio.gather(*port_tasks, return_exceptions=True)
 
         for port_res in port_results:
-            # Ignorujemy błędy i puste odpowiedzi z nieaktywnych indeksów
             if not port_res or isinstance(port_res, Exception):
                 continue
                 

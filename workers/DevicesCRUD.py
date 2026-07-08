@@ -24,9 +24,9 @@ def format_key(key):
 
 
 def show_devices(devices):
-    print("\n=== AKTUALNA LISTA URZĄDZEŃ ===")
+    print("\n=== CURRENT DEVICE LIST ===")
     if not devices:
-        print("[Baza jest pusta]")
+        print("[Database is empty]")
         return False
     
     # Formatujemy wyświetlanie w ładną tabelkę
@@ -37,59 +37,59 @@ def show_devices(devices):
 
 
 def add_or_update_device(devices):
-    print("\n--- Dodawanie / Modyfikacja pozycji ---")
-    image_name = input("Podaj nazwę obrazu (np. C3640-A3JS-M): ")
+    print("\n--- Adding / Updating Device ---")
+    image_name = input("Enter device image name (e.g., C3640-A3JS-M): ")
     image_name = format_key(image_name)
 
     if not image_name or image_name == "()":
-        print("Błąd: Nazwa obrazu nie może być pusta!")
+        print("Error: Device image name cannot be empty!")
         return
 
     if image_name in devices:
-        print(f"Modyfikujesz istniejący obraz. Obecny typ: '{devices[image_name]}'")
+        print(f"Updating existing image. Current type: '{devices[image_name]}'")
     
-    device_type = input("Podaj typ urządzenia (np. Switch, Router): ").strip()
+    device_type = input("Enter device type (e.g., Switch, Router): ").strip()
 
     if not device_type:
-        print("Błąd: Typ urządzenia nie może być pusty!")
+        print("Error: Device type cannot be empty!")
         return
 
     devices[image_name] = device_type
     save_devices(devices)
-    print(f"Pomyślnie zapisano: {image_name} -> {device_type}")
+    print(f"Successfully saved: {image_name} -> {device_type}")
 
 
 def delete_device(devices):
-    print("\n--- Usuwanie pozycji ---")
+    print("\n--- Deleting Device ---")
     if not show_devices(devices):
         return
 
-    image_name = input("\nPodaj pełną nazwę obrazu do usunięcia: ")
+    image_name = input("\nEnter full device image name to delete: ")
     image_name = format_key(image_name)
 
     if image_name in devices:
-        potwierdzenie = input(f"Czy na pewno chcesz usunąć {image_name}? (t/N): ").strip().lower() or 'n'
-        if potwierdzenie == 't':
+        confirmation = input(f"Are you sure you want to delete {image_name}? (t/N): ").strip().lower() or 'n'
+        if confirmation == 't':
             del devices[image_name]
             save_devices(devices)
-            print(f"Pozycja {image_name} została usunięta.")
+            print(f"Position {image_name} has been deleted.")
         else:
-            print("Anulowano usuwanie.")
+            print("Deletion cancelled.")
     else:
-        print(f"Błąd: Nie znaleziono obrazu '{image_name}' w bazie.")
+        print(f"Error: Device image '{image_name}' not found in the database.")
 
 
 def main():
     while True:
         devices = load_devices()
 
-        print("\n=== MENU ZARZĄDZANIA OBRAZAMI ===")
-        print("1. Wyświetl wszystkie urządzenia")
-        print("2. Dodaj / Modyfikuj urządzenie")
-        print("3. Usuń urządzenie")
-        print("4. Wyjście")
+        print("\n=== ISO MANAGMENT MENU ===")
+        print("1. Display all devices")
+        print("2. Add / Modify device")
+        print("3. Delete device")
+        print("4. Exit")
         
-        wybor = input("Wybierz opcję (1-4): ").strip()
+        wybor = input("Choose an option (1-4): ").strip()
 
         if wybor == "1":
             show_devices(devices)
@@ -98,12 +98,12 @@ def main():
         elif wybor == "3":
             delete_device(devices)
         elif wybor == "4":
-            print("Zamykanie programu. Do zobaczenia!")
+            print("Closing program. See you!")
             break
         else:
-            print("Niepoprawny wybór, spróbuj ponownie.")
+            print("Invalid choice, please try again.")
         
-        input("\nNaciśnij Enter, aby wrócić do menu...")
+        input("\nPress Enter to return to the menu...")
 
 
 if __name__ == "__main__":

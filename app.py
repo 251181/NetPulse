@@ -4,7 +4,6 @@ import click
 
 from datetime import timedelta
 
-
 from flask import Flask
 from flask_cors import CORS
 from flask_pymongo import PyMongo
@@ -18,15 +17,24 @@ from routes.frontend import frontend_bp
 
 from core.auth import auth_guard
 
+from config import Config
+
 from workers.main import main
 from helpers.notification_manager import start_telegram_system
 
 app = Flask(__name__)
 
-app.config["MONGO_URI"] = "mongodb://localhost:27017/NetPulse"
-app.config["SESSION_COOKIE_SECURE"] = True
-app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config.from_object(Config)
+
+required = [
+    "SECRET_KEY",
+    "TELEGRAM_BOT_TOKEN",
+    "AUTH_PASSWORD",
+]
+
+for key in required:
+    if not app.config.get(key):
+        raise RuntimeError(f"Missing environment variable: {key}")
 
 mongo = PyMongo(app)
 app.mongo = mongo
@@ -39,9 +47,6 @@ app.register_blueprint(metrics_bp)
 app.register_blueprint(events_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(frontend_bp)
-
-app.secret_key = "#@W$*YU%&*(WYEGHWH*(HG(*SCHBGVHUSICHVBUIh)))"
-app.permanent_session_lifetime = timedelta(days=30)
 
 @app.before_request
 def global_auth_guard():

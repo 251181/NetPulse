@@ -32,3 +32,4 @@ def push_event(event):
 
     if event['type'] != 'DATA_REFRESH_SIGNAL':
         notification_queue.put(event)
+        push_event({'type': 'DATA_REFRESH_SIGNAL', 'source': 'System'})

@@ -59,17 +59,17 @@ async def start_app():
     while True:
         print("Updating monitored devices and polling SNMP metrics...")
         if k % reset_k == 0:
-            print("[*] Ponowne skanowanie sieci...")
+            print("[*] Rescanning network...")
             new_raw_hosts = scanForDevices(interface_SNMP)
 
             added = [h for h in new_raw_hosts if h not in raw_hosts]
             removed = [h for h in raw_hosts if h not in new_raw_hosts]
 
             if added or removed:
-                print("[*] Zmiany w sieci wykryte, aktualizuję listę monitorowanych urządzeń...")
+                print("[*] Changes in network detected, updating list of monitored devices...")
 
-                print("dodane:", added)
-                print("usunięte:", removed)
+                print("added:", added)
+                print("removed:", removed)
 
                 raw_hosts = new_raw_hosts
                 await PollerManager().poll_devices(poller, raw_hosts)
@@ -82,4 +82,4 @@ def main():
     try:
         asyncio.run(start_app())
     except KeyboardInterrupt:
-        print("\nZamykanie NetPulse...")
+        print("\nClosing NetPulse...")
