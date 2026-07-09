@@ -8,8 +8,8 @@ from workers.MySnifferClass import MySniffer
 from workers.SubnetScanner import scanForDevices
 from workers.PollerManager import PollerManager
 from workers.SnmpPoller import AsyncSNMPPoller
-from workers.packetAnalyzer import MyAnalyzer
-from workers.snmp_analyzer import SNMPTelemetryAnalyzer
+from workers.PacketAnalyzer import MyAnalyzer
+from workers.SnmpAnalyzer import SNMPTelemetryAnalyzer
 
     # Run with sudo!
 

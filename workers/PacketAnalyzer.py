@@ -421,7 +421,7 @@ class StructuralAnomalyDetector:
                     "type": "DISTRIBUTED_DENIAL_OF_SERVICE",
                     "source": "packet_analysis",
                     "threatLevel": "critical",
-                    "ip": ip,
+                    "ip": "0.0.0.0",
                     "message": (
                         f"Potential distributed denial-of-service attack detected against the device. "
                         f"Unique source IP addresses accounted for {ip_dispersion_ratio *  100:.1f}% "
