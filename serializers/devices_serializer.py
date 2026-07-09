@@ -2,6 +2,7 @@ from datetime import datetime, timezone, timedelta
 
 DETECTION_WINDOW_SECONDS = 15
 
+
 def serialize_devices(devices):
     return [serialize_device(d) for d in devices]
 
@@ -65,7 +66,6 @@ def serialize_performance(p):
 
     normalized = {}
 
-    # ---------------- CPU ----------------
     try:
         if "cpu_idle" in p:
             normalized["cpu_percent"] = 100 - float(p.get("cpu_idle", 0))
@@ -79,8 +79,6 @@ def serialize_performance(p):
     except:
         normalized["cpu_percent"] = None
 
-
-    # ---------------- MEMORY (Linux) ----------------
     try:
         if "ram_total" in p:
             total = float(p.get("ram_total", 0))

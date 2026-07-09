@@ -23,12 +23,6 @@ def login():
     return jsonify({"ok": False}), 401
 
 
-# @auth_bp.route("/auth/logout", methods=["GET"])
-# def logout():
-#     session.clear()
-#     return jsonify({"ok": True, "message": "logged out"})
-
-
 @auth_bp.route("/auth/logout", methods=["POST"])
 def logout():
     session.clear()

@@ -2,8 +2,6 @@ import threading
 import logging
 import click
 
-from datetime import timedelta
-
 from flask import Flask
 from flask_cors import CORS
 from flask_pymongo import PyMongo
@@ -51,6 +49,7 @@ app.register_blueprint(frontend_bp)
 @app.before_request
 def global_auth_guard():
     return auth_guard()
+
 
 if __name__ == "__main__":
     logging.getLogger('werkzeug').disabled = True
