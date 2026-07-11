@@ -1,0 +1,85 @@
+from scapy.all import get_if_list, get_if_addr
+import time
+import asyncio
+import multiprocessing
+import ipaddress
+
+from workers.MySnifferClass import MySniffer
+from workers.SubnetScanner import scanForDevices
+from workers.PollerManager import PollerManager
+from workers.SnmpPoller import AsyncSNMPPoller
+from workers.PacketAnalyzer import MyAnalyzer
+from workers.SnmpAnalyzer import SNMPTelemetryAnalyzer
+
+    # Run with sudo!
+
+def getInterfaceFromUser():
+    print("Available interfaces:")
+    for interface in get_if_list():
+        print(f"{interface}, with addr: {get_if_addr(interface)}")
+
+    print("Provide network interface for SNMP ", end="")
+    while(True):
+        interface_SNMP = input("[virbr0]: ") or "virbr0"
+        if interface_SNMP not in get_if_list():
+            print(f"Error: Interface \"{interface_SNMP}\" does not exist, try again: ", end="")
+        else:
+            break
+
+    print("Provide network interface for Port Mirroring ", end="")
+    while(True):
+        interface_PM = input("[tap-span]: ") or "tap-span"
+        if interface_PM not in get_if_list():
+            print(f"Error: Interface \"{interface_PM}\" does not exist, try again: ", end="")
+        else:
+            break
+
+    return interface_SNMP, interface_PM
+
+async def start_app():
+    interface_SNMP, interface_PM = getInterfaceFromUser()
+    
+    shared_queue = multiprocessing.Queue()
+
+    mySniffer = MySniffer(interface_PM, shared_queue, myIP=get_if_addr(interface_SNMP))
+    analyzer = MyAnalyzer(shared_queue, safe_network=ipaddress.ip_network(get_if_addr(interface_SNMP) + '/24', strict=False))
+
+    poller = AsyncSNMPPoller()
+    snmp_analyzer = SNMPTelemetryAnalyzer()
+
+    raw_hosts = [{'test': {'ip': '192.168.1.100'}}]
+
+    await PollerManager().load_lookup_table("/home/AdminNetPulse/NetPulseApp/workers/devices.json")
+
+    k = 0
+    reset_k = 6
+    pool_cooldown = 10
+
+    print("WELCOME TO NETPULSE - YOUR NETWORK MONITORING SOLUTION")
+    while True:
+        print("Updating monitored devices and polling SNMP metrics...")
+        if k % reset_k == 0:
+            print("[*] Rescanning network...")
+            new_raw_hosts = scanForDevices(interface_SNMP)
+
+            added = [h for h in new_raw_hosts if h not in raw_hosts]
+            removed = [h for h in raw_hosts if h not in new_raw_hosts]
+
+            if added or removed:
+                print("[*] Changes in network detected, updating list of monitored devices...")
+
+                print("added:", added)
+                print("removed:", removed)
+
+                raw_hosts = new_raw_hosts
+                await PollerManager().poll_devices(poller, raw_hosts)
+
+        await PollerManager().poll_metrics(poller, snmp_analyzer)
+        await asyncio.sleep(pool_cooldown)
+        k = (k + 1) % reset_k
+
+def main():
+    try:
+        asyncio.run(start_app())
+    except KeyboardInterrupt:
+        print("\nClosing NetPulse...")

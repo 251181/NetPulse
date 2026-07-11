@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Login</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        font-family: monospace;
+        background: #111;
+        color: #eee;
+
+        min-height: 100dvh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        padding: 16px;
+    }
+    
+    .login-box {
+        width: min(360px, 100%);
+        padding: 0 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .logo {
+        display: block;
+        margin: 0 auto 26px auto;
+        width: 260px;
+        height: auto;
+        margin-bottom: 26px;
+        opacity: 0.95;
+    }
+
+    .login-row {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+    }
+
+    .login-btn {
+        width: 42px;
+        height: 38px;
+        background: #1c1c1c;
+        border: 1px solid #2a2a2a;
+        color: #888;
+        font-family: monospace;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+
+    .login-btn:hover {
+        color: #0cf;
+        border-color: #0cf;
+        background: #151515;
+    }
+
+    .password-wrapper {
+        position: relative;
+        width: 100%;
+        max-width: 260px;
+    }
+
+    .input {
+        width: 100%;
+        font-family: monospace;
+        font-size: 14px;
+        background: #1c1c1c;
+        color: #eee;
+        border: 1px solid #2a2a2a;
+        padding: 10px;
+        padding-right: 42px;
+        outline: none;
+        text-align: center;
+        letter-spacing: 1px;
+        font-size: 14px;
+        min-height: 42px;
+    }
+
+    .input:focus {
+        border-color: #0cf;
+        background: #151515;
+    }
+
+    .toggle-btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: transparent;
+        border: none;
+        color: #555;
+        font-size: 12px;
+        cursor: pointer;
+        padding: 4px;
+        transition: color 0.15s ease;
+    }
+
+    .toggle-btn:hover {
+        color: #0cf;
+    }
+
+    .toggle-btn.active {
+        color: #0cf;
+    }
+
+    .cta {
+        margin-top: 14px;
+        font-size: 10px;
+        color: #555;
+        letter-spacing: 2px;
+    }
+
+    .error {
+        margin-top: 10px;
+        font-size: 10px;
+        color: #f55;
+        display: none;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="login-box">
+    <img src="/static/assets/NetPulse.png" class="logo" alt="Logo">
+
+    <form id="loginForm">
+        <div class="login-row">
+            <div class="password-wrapper">
+                <input
+                    type="password"
+                    id="password"
+                    class="input"
+                    placeholder="ENTER PASSWORD"
+                    autocomplete="off"
+                    autofocus
+                />
+            <button type="button" id="togglePassword" class="toggle-btn">
+                <svg class="eye-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+
+                <svg class="eye-closed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                    <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C5 20 1 12 1 12a21.77 21.77 0 0 1 5.06-6.94"/>
+                    <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.77 21.77 0 0 1-4.14 5.36"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+            </button>
+            </div>
+
+            <button type="submit" class="login-btn">→</button>
+        </div>
+
+        <div class="cta">ACCESS REQUIRED</div>
+        <div class="error" id="error">INVALID PASSWORD</div>
+    </form>
+</div>
+
+<script>
+const API = "https://172.16.253.1:8000";
+
+const passwordInput = document.getElementById("password");
+const toggleBtn = document.getElementById("togglePassword");
+const errorBox = document.getElementById("error");
+
+const eyeOpen = toggleBtn.querySelector(".eye-open");
+const eyeClosed = toggleBtn.querySelector(".eye-closed");
+
+toggleBtn.addEventListener("click", function () {
+    const hidden = passwordInput.type === "password";
+
+    passwordInput.type = hidden ? "text" : "password";
+
+    eyeOpen.style.display = hidden ? "none" : "block";
+    eyeClosed.style.display = hidden ? "block" : "none";
+
+    toggleBtn.classList.toggle("active", hidden);
+});
+
+document.getElementById("loginForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    errorBox.style.display = "none";
+
+    const password = passwordInput.value;
+
+    try {
+        const res = await fetch(API + "/auth/login", {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ password })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.ok) {
+            window.location.href = API + "/";
+        } else {
+            errorBox.style.display = "block";
+        }
+
+    } catch (err) {
+        errorBox.style.display = "block";
+    }
+});
+</script>
+
+</body>
+</html>

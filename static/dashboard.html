@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NetPulse</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: monospace;
+    background: #111;
+    color: #eee;
+    font-size: 13px;
+}
+
+.topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 42px;
+    background: #161616;
+    border-bottom: 1px solid #2a2a2a;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    z-index: 1000;
+}
+
+.logo-image {
+    height: auto;
+    width: 72px;
+    display: block;
+}
+
+.nav-tabs { display: flex; gap: 4px; }
+
+.nav-tab {
+    padding: 4px 14px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: #555;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    font-family: monospace;
+    user-select: none;
+}
+
+.nav-tab:hover  { color: #aaa; }
+.nav-tab.active { color: #0cf; border-color: #0cf; background: #0a1a1a; }
+
+.topbar-spacer { flex: 1; }
+
+.btn-hamburger,
+.btn-alerts-toggle {
+    display: none;
+    background: none;
+    border: 1px solid #2a2a2a;
+    color: #888;
+    font-size: 15px;
+    padding: 3px 9px;
+    cursor: pointer;
+    font-family: monospace;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.btn-hamburger:hover,
+.btn-alerts-toggle:hover { color: #0cf; border-color: #0cf; }
+
+.logout-btn {
+    background: #1c1c1c;
+    color: #888;
+    border: 1px solid #2a2a2a;
+    font-family: monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 5px 12px;
+    cursor: pointer;
+}
+
+.logout-btn:hover {
+    color: #f55;
+    border-color: #f55;
+}
+
+.overlay {
+    display: none;
+    position: fixed;
+    top: 42px; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.65);
+    z-index: 500;
+}
+
+.overlay.active { display: block; }
+
+#view-devices {
+    display: flex;
+    margin-top: 42px;
+    height: calc(100vh - 42px);
+}
+
+.sidebar {
+    width: 210px;
+    background: #161616;
+    border-right: 1px solid #2a2a2a;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.sidebar-section { padding: 12px 10px 6px; }
+
+.section-title {
+    color: #555;
+    font-size: 10px;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+}
+
+.device-card {
+    padding: 10px;
+    margin-bottom: 4px;
+    background: #1c1c1c;
+    border-left: 3px solid #2a2a2a;
+    cursor: pointer;
+}
+
+.device-card:hover    { background: #222; }
+.device-card.active   { border-left-color: #0cf !important; background: #1a2a2a; }
+.device-card.archived { opacity: 0.5; }
+
+.device-name { font-size: 12px; margin-bottom: 4px; }
+.device-meta { display: flex; align-items: center; gap: 8px; }
+.device-ip   { color: #555; font-size: 10px; }
+
+.badge {
+    display: inline-block;
+    padding: 2px 7px;
+    font-size: 10px;
+    border-radius: 2px;
+    font-family: monospace;
+}
+
+.badge-online  { background: #0a2a1a; color: #0f6; border: 1px solid #0a4a2a; }
+.badge-offline { background: #2a0a0a; color: #f55; border: 1px solid #4a1a1a; }
+.badge-warn    { background: #2a2000; color: #fa0; border: 1px solid #4a3800; }
+
+.main { flex: 1; overflow-y: auto; background: #111; min-width: 0; }
+
+.main-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid #1e1e1e;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.main-header h2 { font-size: 15px; }
+.header-ip      { color: #555; font-size: 11px; }
+
+.section       { padding: 12px 16px; border-bottom: 1px solid #1a1a1a; }
+.section-label { color: #555; font-size: 10px; letter-spacing: 1px; margin-bottom: 8px; }
+
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.info-item .k { color: #666; font-size: 10px; margin-bottom: 2px; }
+.info-item .v { font-size: 12px; }
+
+.perf-row       { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.perf-label     { color: #888; font-size: 10px; width: 120px; flex-shrink: 0; }
+.perf-bar-track { flex: 1; height: 8px; background: #222; border-radius: 1px; overflow: hidden; }
+.perf-bar-fill  { height: 100%; border-radius: 1px; }
+.cpu-fill-ok    { background: #0a4a2a; }
+.cpu-fill-warn  { background: #5a3a00; }
+.cpu-fill-high  { background: #4a0a0a; }
+.perf-val { font-size: 11px; flex: 1; }
+
+table.iface { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
+table.iface th { color: #555; font-weight: normal; text-align: left; padding: 5px 8px; font-size: 10px; letter-spacing: 1px; }
+table.iface td { padding: 5px 8px 5px 0; border-top: 1px solid #1e1e1e; vertical-align: middle; }
+.status-up   { color: #0f6; }
+.status-down { color: #f55; }
+
+#alerts {
+    width: 210px;
+    background: #111;
+    border-left: 1px solid #2a2a2a;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.alerts-header {
+    padding: 12px 10px 8px;
+    color: #555;
+    font-size: 10px;
+    letter-spacing: 2px;
+    border-bottom: 1px solid #1e1e1e;
+    flex-shrink: 0;
+}
+
+#alerts-list { overflow-y: auto; flex: 1; padding: 8px; }
+
+.alert {
+    padding: 7px 8px;
+    margin-bottom: 5px;
+    font-size: 10px;
+    border-left: 2px solid;
+    line-height: 1.5;
+    cursor: pointer;
+}
+
+.alert-critical { border-left-color: #ff3b30;    background: #1a0b0b; }
+.alert-high     { border-left-color: #ff7a00; background: #1a1208; }
+.alert-medium   { border-left-color: #ffd60a;    background: #1a1605; }
+.alert-low      { border-left-color: #0cf;    background: #0a1a1a; }
+
+.alert-time   { color: #555; margin-bottom: 2px; }
+.alert-type   { font-size: 9px; letter-spacing: 1px; margin-bottom: 2px; }
+.alert-source { color: #555; font-size: 9px; margin-bottom: 2px; }
+
+.alert-critical .alert-type { color: #ff3b30; }
+.alert-high     .alert-type { color: #ff7a00; }
+.alert-medium   .alert-type { color: #ffd60a; }
+.alert-low      .alert-type { color: #0cf; }
+
+.charts-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.points-selector { display: flex; gap: 4px; flex-wrap: wrap; }
+
+.points-btn {
+    font-family: monospace;
+    font-size: 10px;
+    padding: 3px 10px;
+    background: #1c1c1c;
+    color: #555;
+    border: 1px solid #2a2a2a;
+    cursor: pointer;
+    letter-spacing: 1px;
+}
+
+.points-btn:hover  { color: #aaa; border-color: #444; }
+.points-btn.active { color: #0cf; border-color: #0cf; background: #0a1a1a; }
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.chart-box   { background: #161616; border: 1px solid #222; padding: 8px; }
+.chart-title { font-size: 10px; color: #777; letter-spacing: 1px; margin-bottom: 6px; }
+canvas.chart { display: block; width: 100%; height: 110px; }
+
+#view-logs {
+    display: none;
+    flex-direction: column;
+    margin-top: 42px;
+    height: calc(100vh - 42px);
+    overflow: hidden;
+}
+
+.logs-filters {
+    padding: 10px 16px;
+    border-bottom: 1px solid #1e1e1e;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    background: #161616;
+    flex-shrink: 0;
+}
+
+.filter-label { color: #555; font-size: 10px; letter-spacing: 1px; }
+
+.filter-input, .filter-select {
+    font-family: monospace;
+    font-size: 11px;
+    background: #1c1c1c;
+    color: #eee;
+    border: 1px solid #2a2a2a;
+    padding: 3px 8px;
+    outline: none;
+}
+
+.filter-select option  { background: #1c1c1c; }
+.filter-input:focus,
+.filter-select:focus   { border-color: #555; }
+.logs-count { color: #555; font-size: 10px; margin-left: auto; }
+
+#logs-list { overflow-y: auto; flex: 1; padding: 10px 16px; }
+
+.log-entry {
+    padding: 8px 10px;
+    margin-bottom: 5px;
+    font-size: 11px;
+    border-left: 2px solid;
+    line-height: 1.6;
+}
+
+.log-critical { border-left-color: #ff3b30;    background: #1a0a0a; }
+.log-high     { border-left-color: #ff7a00; background: #1a1208; }
+.log-medium   { border-left-color: #ffd60a;    background: #1a1500; }
+.log-low      { border-left-color: #0cf;    background: #0a1a1a; }
+
+.log-severity {
+    font-weight: 700;
+    margin-right: 6px;
+    letter-spacing: 1px;
+}
+
+.log-meta {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+}
+.log-time { color: #555; font-size: 10px; }
+.log-type { font-size: 10px; letter-spacing: 1px; }
+.log-critical .log-type { color: #ff3b30; }
+.log-high     .log-type { color: #ff7a00; }
+.log-medium   .log-type { color: #ffd60a; }
+.log-low      .log-type { color: #0cf; }
+.log-ip  { color: #666; font-size: 10px; }
+.log-msg { color: #ccc; }
+
+@media (max-width: 600px) {
+    .log-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        white-space: normal;
+    }
+
+    .log-ip {
+        color: #666;
+    }
+
+    .log-type {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+}
+
+/* RESPONSYWNOŚĆ */
+
+@media (max-width: 900px) {
+    .btn-hamburger,
+    .btn-alerts-toggle {
+        display: block;
+    }
+
+    .sidebar {
+        position: fixed;
+        top: 42px;
+        left: 0;
+        height: calc(100vh - 42px);
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        z-index: 600;
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.6);
+    }
+
+    .sidebar.open { transform: translateX(0); }
+
+    #alerts {
+        position: fixed;
+        top: 42px;
+        right: 0;
+        height: calc(100vh - 42px);
+        transform: translateX(100%);
+        transition: transform 0.25s ease;
+        z-index: 600;
+        box-shadow: -4px 0 24px rgba(0, 0, 0, 0.6);
+    }
+
+    #alerts.open { transform: translateX(0); }
+
+    .main { width: 100%; }
+}
+
+@media (max-width: 600px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .info-grid   { grid-template-columns: 1fr; }
+
+    table.iface {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        font-size: 10px;
+    }
+
+    .logs-filters {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        padding: 8px 12px;
+    }
+
+    .filter-label { display: none; }
+    .filter-input { width: 100% !important; }
+    .logs-count   { margin-left: 0; }
+
+    .section     { padding: 10px 12px; }
+    .main-header { padding: 10px 12px 8px; }
+    #logs-list   { padding: 8px 12px; }
+    .perf-label  { width: 80px; }
+}
+
+@media (max-width: 400px) {
+    .topbar     { padding: 0 8px; gap: 6px; }
+    .nav-tab    { padding: 4px 8px; font-size: 9px; letter-spacing: 0.5px; }
+    .points-btn { padding: 3px 6px; font-size: 9px; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+    <button class="btn-hamburger" id="btn-hamburger">&#9776;</button>
+    <img src="/static/assets/NetPulse.png" class="logo-image" alt="NetPulse">
+    <div class="nav-tabs">
+        <span class="nav-tab active" id="tab-devices">DEVICES</span>
+        <span class="nav-tab"        id="tab-logs">LOGS</span>
+    </div>
+    <div class="topbar-spacer"></div>
+    <button class="logout-btn" id="logout-btn">
+        LOGOUT
+    </button>
+    <button class="btn-alerts-toggle" id="btn-alerts-toggle">&#128276;</button>
+</div>
+
+<div class="overlay" id="overlay"></div>
+
+<div id="view-devices">
+    <div class="sidebar">
+        <div class="sidebar-section">
+            <div class="section-title">DEVICES</div>
+            <div id="device-list"></div>
+        </div>
+    </div>
+
+    <div class="main">
+        <div id="main-header" class="main-header" style="display:none">
+            <h2 id="title-name"></h2>
+            <span class="header-ip" id="title-ip"></span>
+            <span id="title-badge"></span>
+        </div>
+        <div id="device-details"></div>
+    </div>
+
+    <div id="alerts">
+        <div class="alerts-header">ALERTS</div>
+        <div id="alerts-list"></div>
+    </div>
+</div>
+
+<div id="view-logs">
+    <div class="logs-filters">
+        <span class="filter-label">IP</span>
+        <select class="filter-select" id="filter-ip">
+            <option value="">ALL</option>
+        </select>
+
+        <span class="filter-label">LEVEL</span>
+        <select class="filter-select" id="filter-level">
+            <option value="">ALL</option>
+            <option value="critical">CRITICAL</option>
+            <option value="high">HIGH</option>
+            <option value="medium">MEDIUM</option>
+            <option value="low">LOW</option>
+        </select>
+
+        <span class="filter-label">TYPE</span>
+        <select class="filter-select" id="filter-type">
+            <option value="">ALL</option>
+        </select>
+
+        <input class="filter-input" id="filter-search" placeholder="SEARCH..." style="width:180px" />
+        <span class="logs-count" id="logs-count"></span>
+    </div>
+    <div id="logs-list"></div>
+</div>
+
+<script>
+const API_BASE = "https://172.16.253.1:8000";
+
+let devices = [];
+var MOCK_LOGS = [];
+var MOCK_METRICS = [];
+var selectedDevice = null;
+var rawVisible     = false;
+var chartPoints    = 30;
+
+async function init() {
+    try {
+        const [devicesRes, logsRes, metricsRes] = await Promise.all([
+            fetch(`${API_BASE}/devices`, {
+                credentials: "include"
+            }),
+            fetch(`${API_BASE}/logs`, {
+                credentials: "include"
+            }),
+            fetch(`${API_BASE}/metrics`, {
+                credentials: "include"
+            })
+        ]);
+
+        devices      = await devicesRes.json()  || [];
+        MOCK_LOGS    = await logsRes.json()     || [];
+        MOCK_METRICS = await metricsRes.json()  || [];
+
+        devices.sort(function(a, b) { return (a.ip || "").localeCompare(b.ip || ""); });
+
+        populateLogFilters();
+        renderDevices();
+        connectSSE();
+
+    } catch(err) {
+        console.error("Init error:", err);
+    }
+}
+
+function connectSSE() {
+    var es = new EventSource(API_BASE + "/events");
+
+    es.onmessage = function(e) {
+        try {
+            var event = JSON.parse(e.data);
+            if (event.type == "DATA_REFRESH_SIGNAL") {
+                refreshData();
+                return;
+            }
+            addAlert(event);
+        } catch(err) {
+            console.error("Bad SSE:", e.data);
+        }
+    };
+
+    es.onerror = function() {
+        console.warn("SSE disconnected");
+    };
+}
+
+async function refreshData() {
+    try {
+        const [devicesRes, logsRes, metricsRes] = await Promise.all([
+            fetch(`${API_BASE}/devices`, {
+                credentials: "include"
+            }),
+            fetch(`${API_BASE}/logs`, {
+                credentials: "include"
+            }),
+            fetch(`${API_BASE}/metrics`, {
+                credentials: "include"
+            })
+        ]);
+
+        devices      = await devicesRes.json()  || [];
+        MOCK_LOGS    = await logsRes.json()     || [];
+        MOCK_METRICS = await metricsRes.json()  || [];
+
+        devices.sort(function(a, b) { return (a.ip || "").localeCompare(b.ip || ""); });
+
+        document.getElementById("filter-ip").innerHTML   = '<option value="">ALL</option>';
+        document.getElementById("filter-type").innerHTML = '<option value="">ALL</option>';
+        populateLogFilters();
+
+        if (document.getElementById("view-logs").style.display !== "none") {
+            filterLogs();
+        }
+
+        renderDevices();
+
+        if (selectedDevice) {
+            var updated = null;
+            for (var i = 0; i < devices.length; i++) {
+                if (devices[i].ip === selectedDevice.ip) { updated = devices[i]; break; }
+            }
+            selectedDevice = updated;
+            renderDevice();
+        }
+
+    } catch(err) {
+        console.error("Refresh error:", err);
+    }
+}
+
+//HELPERS
+
+function formatBytes(bytes) {
+    var n = parseInt(bytes);
+    if (!n || n === 0) return "—";
+    if (n >= 1073741824) return (n / 1073741824).toFixed(1) + " GB";
+    if (n >= 1048576)    return (n / 1048576).toFixed(1) + " MB";
+    if (n >= 1024)       return Math.round(n / 1024) + " KB";
+    return n + " B";
+}
+
+function cpuBarClass(val) {
+    var n = parseFloat(val);
+    if (n >= 90) return "cpu-fill-high";
+    if (n >= 75) return "cpu-fill-warn";
+    return "cpu-fill-ok";
+}
+
+function statusBadge(status) {
+    if (!status) return "";
+    var s = status.toLowerCase();
+    if (s === "up")   return '<span class="badge badge-online">'  + status + '</span>';
+    if (s === "down") return '<span class="badge badge-offline">' + status + '</span>';
+    return '<span class="badge badge-warn">' + status + '</span>';
+}
+
+function parseTimestamp(ts) {
+    if (!ts) return "—";
+    var raw = (typeof ts === "string") ? ts : (ts["$date"] || "");
+    if (!raw) return "—";
+    return new Date(raw).toLocaleString('pl-PL', {timeZone: 'Europe/Warsaw'});
+}
+
+//VIEW SWITCHING
+
+function showView(view) {
+    document.getElementById("view-devices").style.display = (view === "devices") ? "flex" : "none";
+    document.getElementById("view-logs").style.display    = (view === "logs") ? "flex" : "none";
+
+    document.getElementById("tab-devices").classList.toggle("active", view === "devices");
+    document.getElementById("tab-logs").classList.toggle("active", view === "logs");
+
+    if (view === "logs") renderLogs();
+
+    if (view === "devices" && selectedDevice) {
+        requestAnimationFrame(function () {
+            renderDevice();
+        });
+    }
+}
+
+//DEVICE LIST
+
+function renderDevices() {
+    var el       = document.getElementById("device-list");
+    var active   = devices.filter(function(d) { return d.detected === true || d.detected === "true"; });
+    var archived = devices.filter(function(d) { return active.indexOf(d) === -1; });
+
+    var html = active.map(renderDeviceCard).join("");
+    if (archived.length > 0) {
+        html += '<div class="section-title" style="margin-top:10px;">ARCHIVED</div>';
+        html += archived.map(renderDeviceCard).join("");
+    }
+    el.innerHTML = html;
+}
+
+function renderDeviceCard(d) {
+    var info       = d.general || {};
+    var name       = info.name   || d.ip;
+    var status     = info.status || "unknown";
+    var isActive   = selectedDevice && selectedDevice.ip === d.ip;
+    var isArchived = d.detected === false;
+
+    return '<div class="device-card' +
+        (isActive   ? ' active'   : '') +
+        (isArchived ? ' archived' : '') +
+        '" data-ip="' + d.ip + '">' +
+        '<div class="device-name">' + name + '</div>' +
+        '<div class="device-meta">' +
+            statusBadge(status) +
+            '<span class="device-ip">' + d.ip + '</span>' +
+        '</div></div>';
+}
+
+//DEVICE DETAIL
+
+function renderDevice() {
+    var el     = document.getElementById("device-details");
+    var header = document.getElementById("main-header");
+
+    if (!selectedDevice) {
+        el.innerHTML = '<div style="padding:20px;color:#555;">Wybierz urządzenie</div>';
+        header.style.display = "none";
+        return;
+    }
+
+    var d          = selectedDevice;
+    var info       = d.general || {};
+    var perf       = (d.performance && d.performance.normalized) ? d.performance.normalized : {};
+    var isDown     = (info.status || "").toLowerCase() === "down";
+    var interfaces = d.interfaces || [];
+
+    header.style.display = "flex";
+    document.getElementById("title-name").textContent = info.name || d.ip;
+    document.getElementById("title-ip").textContent   = d.ip;
+    document.getElementById("title-badge").innerHTML  = statusBadge(info.status);
+
+    var html = "";
+
+    html += '<div class="section">' +
+        '<div class="section-label">GENERAL</div>' +
+        '<div class="info-grid">' +
+            '<div class="info-item"><div class="k">IP</div><div class="v">'         + d.ip                     + '</div></div>' +
+            '<div class="info-item"><div class="k">STATUS</div><div class="v">'     + statusBadge(info.status)  + '</div></div>' +
+            '<div class="info-item"><div class="k">VENDOR</div><div class="v">'     + (info.vendor || "—")      + '</div></div>' +
+            '<div class="info-item"><div class="k">TYPE</div><div class="v">'       + (info.type   || "—")      + '</div></div>' +
+            '<div class="info-item"><div class="k">INTERFACES</div><div class="v">' + interfaces.length         + '</div></div>' +
+            '<div class="info-item"><div class="k">NAME</div><div class="v">'       + (info.name   || "—")      + '</div></div>' +
+        '</div></div>';
+
+    if (!isDown) {
+        html += '<div class="section">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                '<div class="section-label" style="margin:0;">PERFORMANCE</div>' +
+                '<button id="toggle-raw" style="font-size:10px;background:#222;color:#aaa;border:1px solid #333;padding:3px 6px;cursor:pointer;font-family:monospace;">RAW</button>' +
+            '</div>';
+
+        if (perf.cpu_percent !== undefined) {
+            var cls = cpuBarClass(perf.cpu_percent);
+            html += '<div class="perf-row" style="margin-top:8px;">' +
+                '<span class="perf-label">CPU</span>' +
+                '<div class="perf-bar-track"><div class="perf-bar-fill ' + cls + '" style="width:' + Math.min(perf.cpu_percent, 100) + '%"></div></div>' +
+                '<span class="perf-val">' + perf.cpu_percent + '%</span>' +
+            '</div>';
+        }
+
+        if (perf.memory_used_bytes !== undefined) {
+            html += '<div class="perf-row">' +
+                '<span class="perf-label">Memory</span>' +
+                '<span class="perf-val">' + formatBytes(perf.memory_used_bytes) + '</span>' +
+            '</div>';
+        }
+
+        if (rawVisible && d.performance && d.performance.raw) {
+            html += renderRaw(d.performance.raw);
+        }
+
+        html += '</div>';
+    }
+
+    if (interfaces.length > 0) {
+        html += '<div class="section"><div class="section-label">INTERFACES</div>' +
+            '<table class="iface"><thead><tr><th>NAME</th><th>STATUS</th><th>RX</th><th>TX</th><th>ERRORS</th></tr></thead><tbody>';
+        interfaces.forEach(function(i) {
+            html += '<tr>' +
+                '<td>' + i.name + '</td>' +
+                '<td class="' + (i.status === "up" ? "status-up" : "status-down") + '">' + i.status + '</td>' +
+                '<td>' + formatBytes(i.rx_bytes) + '</td>' +
+                '<td>' + formatBytes(i.tx_bytes) + '</td>' +
+                '<td>' + i.rx_errors + ' / ' + i.tx_errors + '</td>' +
+            '</tr>';
+        });
+        html += '</tbody></table></div>';
+    }
+
+    html += '<div class="section">' +
+        '<div class="charts-header">' +
+            '<div class="section-label" style="margin:0;">CHARTS</div>' +
+            '<div class="points-selector">' +
+                '<button class="points-btn' + (chartPoints===30   ? ' active' : '') + '" data-points="30">30</button>'   +
+                '<button class="points-btn' + (chartPoints===60   ? ' active' : '') + '" data-points="60">60</button>'  +
+                '<button class="points-btn' + (chartPoints===180  ? ' active' : '') + '" data-points="180">180</button>' +
+                '<button class="points-btn' + (chartPoints===360  ? ' active' : '') + '" data-points="360">360</button>' +
+            '</div>' +
+        '</div>' +
+        '<div class="charts-grid">' +
+            '<div class="chart-box"><div class="chart-title">CPU</div><canvas id="ch-cpu" class="chart"></canvas></div>'         +
+            '<div class="chart-box"><div class="chart-title">RAM</div><canvas id="ch-ram" class="chart"></canvas></div>'         +
+            '<div class="chart-box"><div class="chart-title">RX BYTES</div><canvas id="ch-rxb" class="chart"></canvas></div>'   +
+            '<div class="chart-box"><div class="chart-title">TX BYTES</div><canvas id="ch-txb" class="chart"></canvas></div>'   +
+            '<div class="chart-box"><div class="chart-title">RX PACKETS</div><canvas id="ch-rxp" class="chart"></canvas></div>' +
+            '<div class="chart-box"><div class="chart-title">TX PACKETS</div><canvas id="ch-txp" class="chart"></canvas></div>' +
+        '</div></div>';
+
+    el.innerHTML = html;
+    requestAnimationFrame(function() { drawAllCharts(d.ip); });
+}
+
+function renderRaw(raw) {
+    if (!raw) return "";
+    var html = '<div style="margin-top:10px;border-top:1px solid #1e1e1e;padding-top:8px;"><div class="section-label">RAW</div>';
+    for (var k in raw) {
+        html += '<div class="perf-row"><span class="perf-label">' + k + '</span><span class="perf-val">' + (raw[k] !== null && raw[k] !== undefined ? raw[k] : "—") + '</span></div>';
+    }
+    return html + '</div>';
+}
+
+//CHARTS
+
+function setChartPoints(n) {
+    chartPoints = n;
+    if (selectedDevice) renderDevice();
+}
+
+function drawAllCharts(ip) {
+    var container = document.getElementById("view-devices");
+    if (container.style.display === "none") return;
+
+    var m = null;
+    for (var i = 0; i < MOCK_METRICS.length; i++) {
+        if (MOCK_METRICS[i].ip === ip) { m = MOCK_METRICS[i]; break; }
+    }
+    if (!m) return;
+
+    var len   = m.timestamps.length;
+    var start = Math.max(0, len - chartPoints);
+
+    function sl(arr) { return arr.slice(start); }
+
+    var ts = sl(m.timestamps);
+
+    drawChart("ch-cpu", sl(m.cpu),        ts, "#0cf", v => v?.toFixed(1) + "%", true);
+    drawChart("ch-ram", sl(m.ram),        ts, "#0a6", formatBytes, false);
+    drawChart("ch-rxb", sl(m.rx_bytes),   ts, "#09f", formatBytes, false);
+    drawChart("ch-txb", sl(m.tx_bytes),   ts, "#f90", formatBytes, false);
+    drawChart("ch-rxp", sl(m.rx_packets), ts, "#6af", v => v.toLocaleString(), false);
+    drawChart("ch-txp", sl(m.tx_packets), ts, "#fa6", v => v.toLocaleString(), false);
+}
+
+function drawChart(id, values, timestamps, color, labelFn, skipZero) {
+    var canvas = document.getElementById(id);
+    if (!canvas) return;
+
+    for (var i = 0; i < values.length; i++) {
+        if (values[i] !== null && values[i] !== undefined) {
+            values[i] = Math.round(values[i]);
+        }
+    }
+
+    var dpr = window.devicePixelRatio || 1;
+    var W   = canvas.offsetWidth  || 300;
+    var H   = canvas.offsetHeight || 110;
+
+    canvas.width  = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width  = W + "px";
+    canvas.style.height = H + "px";
+
+    var ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+
+    var PAD = { top: 12, right: 8, bottom: 22, left: 58 };
+    var PW  = W - PAD.left - PAD.right;
+    var PH  = H - PAD.top  - PAD.bottom;
+
+    ctx.fillStyle = "#161616";
+    ctx.fillRect(0, 0, W, H);
+
+    var valid = [];
+    for (var i = 0; i < values.length; i++) {
+        var v = values[i];
+        if (v !== null && v !== undefined && !(skipZero && v === 0)) {
+            valid.push({ v: v, i: i });
+        }
+    }
+
+    if (valid.length === 0) {
+        ctx.fillStyle = "#444";
+        ctx.font      = "10px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("no data", W / 2, H / 2);
+        return;
+    }
+
+    var minV  = valid[0].v, maxV = valid[0].v;
+    valid.forEach(function(p) { if (p.v < minV) minV = p.v; if (p.v > maxV) maxV = p.v; });
+    var range = (maxV - minV) || 1;
+
+    function xOf(idx) { return PAD.left + (values.length > 1 ? (idx / (values.length - 1)) * PW : PW / 2); }
+    function yOf(v)   { return PAD.top  + PH - ((v - minV) / range) * PH; }
+
+    ctx.strokeStyle = "#1e1e1e";
+    ctx.lineWidth   = 1;
+    for (var g = 0; g <= 3; g++) {
+        var gy = PAD.top + (g / 3) * PH;
+        ctx.beginPath(); ctx.moveTo(PAD.left, gy); ctx.lineTo(W - PAD.right, gy); ctx.stroke();
+    }
+
+    ctx.fillStyle = "#444";
+    ctx.font      = "9px monospace";
+    ctx.textAlign = "right";
+    for (var g2 = 0; g2 <= 3; g2++) {
+        var lv = minV + range * (3 - g2) / 3;
+        ctx.fillText(labelFn(lv), PAD.left - 3, PAD.top + (g2 / 3) * PH + 3);
+    }
+
+    ctx.fillStyle = "#333";
+    ctx.textAlign = "right";
+    ctx.font      = "8px monospace";
+    ctx.fillText(values.length + " pts", W - PAD.right, PAD.top - 2);
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath();
+    valid.forEach(function(p, idx) {
+        var x = xOf(p.i), y = yOf(p.v);
+        if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    if (timestamps.length > 0) {
+        ctx.fillStyle = "#444";
+        ctx.font      = "9px monospace";
+
+        var first = parseTimestamp(timestamps[0]);
+        var last  = parseTimestamp(timestamps[timestamps.length - 1]);
+
+        ctx.textAlign = "left";
+        ctx.fillText(first, PAD.left, H - 5);
+
+        ctx.textAlign = "right";
+        ctx.fillText(last, W - PAD.right, H - 5);
+    }
+}
+
+//ACTIONS
+
+function selectDevice(ip) {
+    rawVisible     = false;
+    selectedDevice = null;
+    for (var i = 0; i < devices.length; i++) {
+        if (devices[i].ip === ip) { selectedDevice = devices[i]; break; }
+    }
+    renderDevices();
+    renderDevice();
+}
+
+//LOGS
+
+function populateLogFilters() {
+    var ips   = [], types = [];
+    MOCK_LOGS.forEach(function(l) {
+        if (ips.indexOf(l.ip) === -1)     ips.push(l.ip);
+        if (types.indexOf(l.type) === -1) types.push(l.type);
+    });
+    ips.sort(); types.sort();
+
+    var ipSel   = document.getElementById("filter-ip");
+    var typeSel = document.getElementById("filter-type");
+
+    ips.forEach(function(ip) {
+        var o = document.createElement("option");
+        o.value = ip; o.textContent = ip; ipSel.appendChild(o);
+    });
+    types.forEach(function(t) {
+        var o = document.createElement("option");
+        o.value = t; o.textContent = t; typeSel.appendChild(o);
+    });
+}
+
+function filterLogs() {
+    var ip     = document.getElementById("filter-ip").value;
+    var level  = document.getElementById("filter-level").value;
+    var type   = document.getElementById("filter-type").value;
+    var search = document.getElementById("filter-search").value.toLowerCase();
+
+    var filtered = MOCK_LOGS.filter(function(l) {
+        if (ip     && l.ip !== ip)             return false;
+        if (level  && l.threatLevel !== level) return false;
+        if (type   && l.type !== type)         return false;
+        if (search &&
+            l.message.toLowerCase().indexOf(search) === -1 &&
+            l.type.toLowerCase().indexOf(search)    === -1 &&
+            l.ip.toLowerCase().indexOf(search)      === -1) return false;
+        return true;
+    });
+
+    document.getElementById("logs-count").textContent = filtered.length + " / " + MOCK_LOGS.length;
+    renderLogsList(filtered);
+}
+
+function renderLogsList(logs) {
+    var el = document.getElementById("logs-list");
+    if (logs.length === 0) {
+        el.innerHTML = '<div style="padding:20px;color:#555;">Brak log&#243;w spe&#322;niaj&#261;cych kryteria</div>';
+        return;
+    }
+    var html = "";
+    logs.forEach(function(l) {
+        html += '<div class="log-entry log-' + (l.threatLevel || "info") + '">' +
+            '<div class="log-meta">' +
+                '<span class="log-time">' + parseTimestamp(l.timestamp) + '</span>' +
+            '<span class="log-type">' +
+                '<span class="log-severity">[' + (l.threatLevel || "info").toUpperCase() + ']</span> ' +
+                l.type +
+            '</span>' +
+                '<span class="log-ip">'  + (l.ip || "system") + ' &middot; ' + (l.source || "unknown") + '</span>' +
+            '</div>' +
+            '<div class="log-msg">' + l.message + '</div>' +
+        '</div>';
+    });
+    el.innerHTML = html;
+}
+
+function renderLogs() { filterLogs(); }
+
+//ALERTS
+
+function addAlert(event) {
+    var el  = document.getElementById("alerts-list");
+    var div = document.createElement("div");
+    div.className = "alert alert-" + (event.threatLevel || "info");
+    div.innerHTML =
+        '<div class="alert-time">'   + parseTimestamp(event.timestamp) + '</div>' +
+        '<div class="alert-type">'   + (event.type   || "UNKNOWN")     + '</div>' +
+        '<div class="alert-source">' + (event.ip     || "system")      + '</div>' +
+        '<div>'                      + (event.message || "")            + '</div>';
+
+    div.addEventListener("click", function() {
+        if (!event.ip) return;
+        for (var i = 0; i < devices.length; i++) {
+            if (devices[i].ip === event.ip) {
+                selectedDevice = devices[i];
+                showView("devices");
+                renderDevices();
+                renderDevice();
+                closeDrawers();
+                break;
+            }
+        }
+    });
+
+    el.prepend(div);
+}
+
+//RESPONSYWNOŚĆ – TOGGLE
+
+function toggleSidebar() {
+    var sidebar = document.querySelector(".sidebar");
+    var overlay = document.getElementById("overlay");
+    var alerts  = document.getElementById("alerts");
+    sidebar.classList.toggle("open");
+    overlay.classList.toggle("active", sidebar.classList.contains("open"));
+    alerts.classList.remove("open");
+}
+
+function toggleAlertsPanel() {
+    var alertsEl = document.getElementById("alerts");
+    var overlay  = document.getElementById("overlay");
+    var sidebar  = document.querySelector(".sidebar");
+    alertsEl.classList.toggle("open");
+    overlay.classList.toggle("active", alertsEl.classList.contains("open"));
+    sidebar.classList.remove("open");
+}
+
+function closeDrawers() {
+    document.querySelector(".sidebar").classList.remove("open");
+    document.getElementById("alerts").classList.remove("open");
+    document.getElementById("overlay").classList.remove("active");
+}
+
+async function logout() {
+    try {
+        await fetch(`${API_BASE}/auth/logout`, {
+            method: "POST",
+            credentials: "include"
+        });
+
+        window.location.href = "/auth/login";
+    }
+    catch (err) {
+        console.error("Logout failed:", err);
+    }
+}
+
+//EVENT DELEGATION
+
+document.addEventListener("click", function(e) {
+    var card = e.target.closest ? e.target.closest(".device-card") : null;
+    if (card && card.dataset && card.dataset.ip) {
+        selectDevice(card.dataset.ip);
+        closeDrawers();
+        return;
+    }
+
+    if (e.target.classList && e.target.classList.contains("points-btn") && e.target.dataset && e.target.dataset.points) {
+        setChartPoints(parseInt(e.target.dataset.points, 10));
+        return;
+    }
+
+    if (e.target && e.target.id === "logout-btn") {
+        logout();
+        return;
+    }
+
+    if (e.target && e.target.id === "toggle-raw")        { rawVisible = !rawVisible; renderDevice(); return; }
+    if (e.target && e.target.id === "tab-devices")       { showView("devices");  return; }
+    if (e.target && e.target.id === "tab-logs")          { showView("logs");     return; }
+    if (e.target && e.target.id === "btn-hamburger")     { toggleSidebar();      return; }
+    if (e.target && e.target.id === "btn-alerts-toggle") { toggleAlertsPanel();  return; }
+    if (e.target && e.target.id === "overlay")           { closeDrawers();       return; }
+});
+
+document.getElementById("filter-ip").addEventListener("change",    filterLogs);
+document.getElementById("filter-level").addEventListener("change", filterLogs);
+document.getElementById("filter-type").addEventListener("change",  filterLogs);
+document.getElementById("filter-search").addEventListener("input", filterLogs);
+
+init();
+</script>
+</body>
+</html>
